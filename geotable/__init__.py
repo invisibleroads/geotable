@@ -1,3 +1,4 @@
+import utm
 from invisibleroads_macros.disk import TemporaryFolder
 from invisibleroads_macros.text import unicode_safely
 from osgeo import gdal, ogr, osr
@@ -7,9 +8,10 @@ from shapely.geometry import GeometryCollection
 from .exceptions import GeoTableError
 from .macros import (
     _get_instance_from_layer, _get_proj4_from_layer,
-    _get_transform_gdal_geometry, _has_one_layer, _has_one_proj4,
-    _has_standard_proj4, _load_geometry_object_from_wkt, _resolve_source_path,
-    get_transform_shapely_geometry, normalize_proj4, PROJ4_LONLAT)
+    _get_transform_gdal_geometry, _has_one_proj4,
+    _load_geometry_object_from_wkt, _resolve_source_path,
+    get_transform_shapely_geometry, get_utm_proj4, normalize_geotable,
+    normalize_proj4, PROJ4_LONLAT)
 
 
 class GeoTable(DataFrame):
@@ -48,7 +50,7 @@ class GeoTable(DataFrame):
             instance['geometry_proj4'] = normalize_proj4(
                 target_proj4 or source_proj4)
             instances.append(instance)
-        return concat(instances)
+        return normalize_geotable(concat(instances))
 
     @classmethod
     def from_csv(
@@ -63,7 +65,7 @@ class GeoTable(DataFrame):
         geometry_proj4s = []
         if _has_one_proj4(t):
             if 'geometry_proj4' in t:
-                source_proj4 = t['geometry_proj4'].unique()[0]
+                source_proj4 = t['geometry_proj4'][0]
             transform_shapely_geometry = get_transform_shapely_geometry(
                 source_proj4, target_proj4)
             for index, row in t.iterrows():
@@ -71,40 +73,47 @@ class GeoTable(DataFrame):
                     _load_geometry_object_from_wkt(row['wkt'])))
                 geometry_proj4s.append(target_proj4 or source_proj4)
         else:
+            t['geometry_proj4'].fillna(source_proj4, inplace=True)
             for index, row in t.iterrows():
-                source_proj4 = row['geometry_proj4'] or source_proj4
+                source_proj4 = row['geometry_proj4']
                 transform_shapely_geometry = get_transform_shapely_geometry(
                     source_proj4, target_proj4)
                 geometry_objects.append(transform_shapely_geometry(
                     _load_geometry_object_from_wkt(row['wkt'])))
                 geometry_proj4s.append(target_proj4 or source_proj4)
         t['geometry_object'] = geometry_objects
-        if normalize_proj4(target_proj4) != PROJ4_LONLAT:
-            t['geometry_proj4'] = geometry_proj4s
-        t.drop(['wkt'], inplace=True)
-        return t
+        t['geometry_proj4'] = geometry_proj4s
+        return normalize_geotable(Class(t), excluded_column_names=['wkt'])
 
     def to_shp(self, target_path, target_proj4=None):
         pass
 
     def to_csv(self, target_path, target_proj4=None, **kw):
-        instances = []
-        for source_proj4, instance in self.groupby('geometry_proj4'):
+        if 'geometry_proj4' in self:
+            instances = []
+            for source_proj4, instance in self.groupby('geometry_proj4'):
+                transform_shapely_geometry = get_transform_shapely_geometry(
+                    source_proj4, target_proj4)
+                instance = instance.copy()
+                instance['wkt'] = [transform_shapely_geometry(
+                    x).wkt for x in instance.pop('geometry_object')]
+                instance['geometry_proj4'] = target_proj4 or source_proj4
+                instances.append(instance)
+            t = concat(instances)
+        else:
+            source_proj4 = PROJ4_LONLAT
             transform_shapely_geometry = get_transform_shapely_geometry(
                 source_proj4, target_proj4)
-            instance = instance.copy()
+            instance = self.copy()
             instance['wkt'] = [transform_shapely_geometry(
                 x).wkt for x in instance.pop('geometry_object')]
             instance['geometry_proj4'] = target_proj4 or source_proj4
-            instances.append(instance)
-        t = concat(instances)
-        excluded_column_names = []
-        if _has_one_layer(t):
-            excluded_column_names.append('geometry_layer')
-        if _has_standard_proj4(t):
-            excluded_column_names.append('geometry_proj4')
-        t.drop(excluded_column_names, axis=1, inplace=True)
-        return super(GeoTable, t).to_csv(target_path, **kw)
+            t = instance
+        return super(GeoTable, normalize_geotable(t)).to_csv(target_path, **kw)
+
+    @property
+    def geometries(self):
+        return list(self['geometry_object'])
 
     @property
     def _constructor(self):
@@ -124,6 +133,22 @@ class GeoRow(Series):
     @property
     def _constructor_expanddim(self):
         return GeoTable
+
+
+class UTMZone(object):
+
+    def __init__(self, zone_number, zone_letter):
+        self.zone_number = zone_number
+        self.zone_letter = zone_letter
+        self.proj4 = get_utm_proj4(zone_number, zone_letter)
+
+    @classmethod
+    def load(Class, geotable_path):
+        t = GeoTable.load(geotable_path, target_proj4=PROJ4_LONLAT)
+        lonlat_point = GeometryCollection(t.geometries).centroid
+        longitude, latitude = lonlat_point.x, lonlat_point.y
+        zone_number, zone_letter = utm.from_latlon(latitude, longitude)[-2:]
+        return Class(zone_number, zone_letter)
 
 
 class ColorfulGeometryCollection(GeometryCollection):

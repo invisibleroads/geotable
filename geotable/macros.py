@@ -29,9 +29,36 @@ def get_transform_shapely_geometry(source_proj4, target_proj4):
     return transform_shapely_geometry
 
 
+def get_utm_proj4(zone_number, zone_letter):
+    parts = []
+    parts.extend([
+        '+proj=utm',
+        '+zone=%s' % zone_number,
+    ])
+    if zone_letter.upper() < 'N':
+        parts.append('+south')
+    parts.extend([
+        '+ellps=WGS84',
+        '+datum=WGS84',
+        '+units=m',
+        '+no_defs',
+    ])
+    return ' '.join(parts)
+
+
 def normalize_proj4(proj4):
     spatial_reference = _get_spatial_reference_from_proj4(proj4)
     return spatial_reference.ExportToProj4().strip()
+
+
+def normalize_geotable(t, excluded_column_names=None):
+    if not excluded_column_names:
+        excluded_column_names = []
+    if _has_one_layer(t):
+        excluded_column_names.append('geometry_layer')
+    if _has_standard_proj4(t):
+        excluded_column_names.append('geometry_proj4')
+    return t.drop(excluded_column_names, axis=1, errors='ignore')
 
 
 def _get_coordinate_transformation(source_proj4, target_proj4):
@@ -126,13 +153,13 @@ def _get_transform_gdal_geometry(source_proj4, target_proj4):
 def _has_one_layer(t):
     if 'geometry_layer' not in t.columns:
         return True
-    return t['geometry_layer'].unique().size == 1
+    return len(t['geometry_layer'].unique()) == 1
 
 
 def _has_one_proj4(t):
     if 'geometry_proj4' not in t.columns:
         return True
-    return t['geometry_proj4'].unique().size == 1
+    return len(t['geometry_proj4'].unique()) == 1
 
 
 def _has_standard_proj4(t):
