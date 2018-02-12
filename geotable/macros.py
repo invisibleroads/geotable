@@ -1,9 +1,5 @@
 from collections import OrderedDict
-from invisibleroads_macros.disk import uncompress
-from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.text import unicode_safely
-from glob import glob
-from os.path import join
 from osgeo import ogr, osr
 from shapely import wkb, wkt
 from shapely.errors import WKTReadingError
@@ -33,16 +29,14 @@ def get_utm_proj4(zone_number, zone_letter):
     parts = []
     parts.extend([
         '+proj=utm',
-        '+zone=%s' % zone_number,
-    ])
+        '+zone=%s' % zone_number])
     if zone_letter.upper() < 'N':
         parts.append('+south')
     parts.extend([
         '+ellps=WGS84',
         '+datum=WGS84',
         '+units=m',
-        '+no_defs',
-    ])
+        '+no_defs'])
     return ' '.join(parts)
 
 
@@ -176,26 +170,6 @@ def _load_geometry_object_from_wkt(geometry_wkt):
     except WKTReadingError:
         raise GeoTableError("wkt unparseable (wkt='%s')" % geometry_wkt)
     return geometry_object
-
-
-def _resolve_source_path(source_path, target_folder):
-    try:
-        source_folder = uncompress(source_path, target_folder)
-    except BadFormat:
-        pass
-    else:
-        try:
-            return glob(join(source_folder, '*.shp'))[0]
-        except IndexError:
-            pass
-        try:
-            return glob(join(source_folder, '*.csv'))[0]
-        except IndexError:
-            pass
-        raise GeoTableError((
-            "expected file missing from archive (source_path='%s')"
-        ) % source_path)
-    return source_path
 
 
 def _transform_field_value(field_value, field_type):

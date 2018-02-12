@@ -1,6 +1,10 @@
 import utm
-from invisibleroads_macros.disk import TemporaryFolder
+from glob import glob
+from invisibleroads_macros.disk import (
+    TemporaryFolder, get_file_stem, uncompress)
+from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.text import unicode_safely
+from os.path import join
 from osgeo import gdal, ogr, osr
 from pandas import DataFrame, Series, concat, read_csv
 from shapely.geometry import GeometryCollection
@@ -9,9 +13,8 @@ from .exceptions import GeoTableError
 from .macros import (
     _get_instance_from_layer, _get_proj4_from_layer,
     _get_transform_gdal_geometry, _has_one_proj4,
-    _load_geometry_object_from_wkt, _resolve_source_path,
-    get_transform_shapely_geometry, get_utm_proj4, normalize_geotable,
-    normalize_proj4, PROJ4_LONLAT)
+    _load_geometry_object_from_wkt, get_transform_shapely_geometry,
+    get_utm_proj4, normalize_geotable, normalize_proj4, PROJ4_LONLAT)
 
 
 class GeoTable(DataFrame):
@@ -19,26 +22,44 @@ class GeoTable(DataFrame):
     @classmethod
     def load(Class, source_path, source_proj4=PROJ4_LONLAT, target_proj4=None):
         with TemporaryFolder() as temporary_folder:
-            target_folder = str(temporary_folder)
-            source_path = _resolve_source_path(source_path, target_folder)
-            if source_path.endswith('.shp'):
-                return Class.from_shp(source_path, source_proj4, target_proj4)
-            if source_path.endswith('.csv'):
-                return Class.from_csv(source_path, source_proj4, target_proj4)
+            try:
+                source_folder = uncompress(source_path, str(temporary_folder))
+            except BadFormat:
+                if source_path.endswith('.shp'):
+                    return Class.from_shp(
+                        source_path, source_proj4, target_proj4)
+                if source_path.endswith('.csv'):
+                    return Class.from_csv(
+                        source_path, source_proj4, target_proj4)
+                raise GeoTableError(
+                    'file format not supported (%s)' % source_path)
+            else:
+                try:
+                    return Class.from_shp(
+                        source_folder, source_proj4, target_proj4)
+                except GeoTableError:
+                    pass
+                instances = []
+                for path in glob(join(source_folder, '*.csv')):
+                    instance = Class.from_csv(path, source_proj4, target_proj4)
+                    instance['geometry_layer'] = get_file_stem(path)
+                return normalize_geotable(concat(instances))
 
     @classmethod
     def from_shp(
             Class, source_path, source_proj4=PROJ4_LONLAT, target_proj4=None):
         try:
-            data_source = ogr.Open(source_path)
+            gdal_dataset = gdal.OpenEx(source_path)
         except RuntimeError:
-            raise GeoTableError(
-                "shapefile unreadable (source_path='%s')" % source_path)
+            raise GeoTableError('shapefile unreadable (%s)' % source_path)
         if not data_source:
-            raise GeoTableError(
-                "shapefile unloadable (source_path='%s')" % source_path)
+            raise GeoTableError('shapefile unloadable (%s)' % source_path)
+        try:
+            layer_count = data_source.GetLayerCount()
+        except AttributeError:
+            raise GeoTableError('shapefile empty (%s)' % source_path)
         instances = []
-        for layer_index in range(data_source.GetLayerCount()):
+        for layer_index in range(layer_count):
             layer = data_source.GetLayer(layer_index)
             layer_name = layer.GetName()
             source_proj4 = _get_proj4_from_layer(layer) or source_proj4
@@ -58,11 +79,8 @@ class GeoTable(DataFrame):
             target_proj4=None, **kw):
         t = read_csv(source_path, **kw)
         if 'wkt' not in t.columns:
-            raise GeoTableError((
-                "column expected (source_path='%s', column_name='wkt')"
-            ) % source_path)
-        geometry_objects = []
-        geometry_proj4s = []
+            raise GeoTableError('wkt column expected (%s)' % source_path)
+        geometry_objects, geometry_proj4s = [], []
         if _has_one_proj4(t):
             if 'geometry_proj4' in t:
                 source_proj4 = t['geometry_proj4'][0]
@@ -167,6 +185,7 @@ class ColorfulGeometryCollection(GeometryCollection):
             self, self.colors))
 
 
+gdal.SetConfigOption('GDAL_NUM_THREADS', 'ALL_CPUS')
 gdal.UseExceptions()
 ogr.UseExceptions()
 osr.UseExceptions()

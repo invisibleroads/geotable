@@ -5,7 +5,11 @@ from setuptools import find_packages, setup
 ENTRY_POINTS = """
 """
 REQUIREMENTS = [
-    'shapely',
+    # 'gdal',
+    'invisibleroads_macros',
+    'pandas',
+    # 'shapely',
+    'utm',
 ]
 FOLDER = dirname(abspath(__file__))
 DESCRIPTION = '\n\n'.join(open(join(FOLDER, x)).read().strip() for x in [
