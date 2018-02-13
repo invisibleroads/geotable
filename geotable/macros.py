@@ -1,76 +1,88 @@
 from collections import OrderedDict
+from datetime import datetime
+from invisibleroads_macros.disk import replace_file_extension
+from invisibleroads_macros.log import get_log
 from invisibleroads_macros.text import unicode_safely
-from osgeo import ogr, osr
+from os.path import exists
+from osgeo import ogr
 from shapely import wkb, wkt
+from shapely.geometry import Point
 from shapely.errors import WKTReadingError
 
-from .exceptions import (
-    CoordinateTransformationError, GeoTableError, SpatialReferenceError)
+from .exceptions import GeoTableError
+from .projections import (
+    get_transform_shapely_geometry, normalize_proj4, LONLAT_PROJ4)
 
 
-def get_proj4_from_epsg(epsg):
-    spatial_reference = osr.SpatialReference()
-    spatial_reference.ImportFromEPSG(epsg)
-    return spatial_reference.ExportToProj4()
+L = get_log(__file__)
 
 
-def get_transform_shapely_geometry(source_proj4, target_proj4):
-    transform_gdal_geometry = _get_transform_gdal_geometry(
-        source_proj4, target_proj4)
-
-    def transform_shapely_geometry(shapely_geometry):
-        gdal_geometry = ogr.CreateGeometryFromWkb(shapely_geometry.wkb)
-        return wkb.loads(transform_gdal_geometry(gdal_geometry).ExportToWkb())
-
-    return transform_shapely_geometry
-
-
-def get_utm_proj4(zone_number, zone_letter):
-    parts = []
-    parts.extend([
-        '+proj=utm',
-        '+zone=%s' % zone_number])
-    if zone_letter.upper() < 'N':
-        parts.append('+south')
-    parts.extend([
-        '+ellps=WGS84',
-        '+datum=WGS84',
-        '+units=m',
-        '+no_defs'])
-    return ' '.join(parts)
+def _get_field_definitions(geotable):
+    field_definitions = []
+    for field_name in geotable.field_names:
+        dtype_name = geotable[field_name].dtype.name
+        if dtype_name in ('bool', 'int8', 'int16', 'int32'):
+            field_type = ogr.OFTInteger
+        elif dtype_name.startswith('int'):
+            field_type = ogr.OFTInteger64
+        elif dtype_name.startswith('float'):
+            field_type = ogr.OFTReal
+        elif dtype_name.startswith('date'):
+            field_type = ogr.OFTDate
+        elif dtype_name == 'object':
+            field_type = ogr.OFTString
+        else:
+            L.warning('dtype not supported (%s)' % dtype_name)
+            field_type = ogr.OFTString
+        field_definitions.append(ogr.FieldDefn(field_name, field_type))
+    return field_definitions
 
 
-def normalize_proj4(proj4):
-    spatial_reference = _get_spatial_reference_from_proj4(proj4)
-    return spatial_reference.ExportToProj4().strip()
-
-
-def normalize_geotable(t, excluded_column_names=None):
-    if not excluded_column_names:
-        excluded_column_names = []
-    if _has_one_layer(t):
-        excluded_column_names.append('geometry_layer')
-    if _has_standard_proj4(t):
-        excluded_column_names.append('geometry_proj4')
-    return t.drop(excluded_column_names, axis=1, errors='ignore')
-
-
-def _get_coordinate_transformation(source_proj4, target_proj4):
-    source_spatial_reference = _get_spatial_reference_from_proj4(source_proj4)
-    target_spatial_reference = _get_spatial_reference_from_proj4(target_proj4)
-    return osr.CoordinateTransformation(
-        source_spatial_reference, target_spatial_reference)
-
-
-def _get_field_type_by_name(layer):
+def _get_field_type_by_name(gdal_layer):
     field_type_by_name = OrderedDict()
-    layer_definition = layer.GetLayerDefn()
-    for field_index in range(layer_definition.GetFieldCount()):
-        field_definition = layer_definition.GetFieldDefn(field_index)
+    gdal_layer_definition = gdal_layer.GetLayerDefn()
+    for field_index in range(gdal_layer_definition.GetFieldCount()):
+        field_definition = gdal_layer_definition.GetFieldDefn(field_index)
         field_name = field_definition.GetName()
         field_type = field_definition.GetType()
         field_type_by_name[field_name] = field_type
     return field_type_by_name
+
+
+def _get_geometry_columns(table):
+    column_names = table.columns
+    for column_name in column_names:
+        if column_name.lower() == 'wkt':
+            return [column_name]
+
+    longitude_column, latitude_column = None, None
+    for column_name in column_names:
+        if column_name.lower() == 'longitude':
+            longitude_column = column_name
+        elif column_name.lower() == 'latitude':
+            latitude_column = column_name
+    if longitude_column and latitude_column:
+        return [longitude_column, latitude_column]
+
+    lon_column, lat_column = None, None
+    for column_name in column_names:
+        if column_name.lower() == 'lon':
+            lon_column = column_name
+        elif column_name.lower() == 'lat':
+            lat_column = column_name
+    if lon_column and lat_column:
+        return [lon_column, lat_column]
+
+    x_column, y_column = None, None
+    for column_name in column_names:
+        if column_name.lower() == 'x':
+            x_column = column_name
+        elif column_name.lower() == 'y':
+            y_column = column_name
+    if x_column and y_column:
+        return [x_column, y_column]
+
+    raise GeoTableError('geometry columns expected')
 
 
 def _get_get_field_values(field_type_by_name):
@@ -91,12 +103,25 @@ def _get_get_field_values(field_type_by_name):
     return get_field_values
 
 
-def _get_instance_from_layer(Class, layer, transform_gdal_geometry):
+def _get_instance_for_csv(instance, source_proj4, target_proj4):
+    transform_shapely_geometry = get_transform_shapely_geometry(
+        source_proj4, target_proj4)
+    instance = instance.copy()
+    instance['wkt'] = [transform_shapely_geometry(
+        x).wkt for x in instance.pop('geometry_object')]
+    instance['geometry_proj4'] = normalize_proj4(
+        target_proj4 or source_proj4)
+    return instance
+
+
+def _get_instance_from_gdal_layer(Class, gdal_layer, transform_gdal_geometry):
     rows = []
-    field_type_by_name = _get_field_type_by_name(layer)
+    field_type_by_name = _get_field_type_by_name(gdal_layer)
     get_field_values = _get_get_field_values(field_type_by_name)
-    for feature_index in range(layer.GetFeatureCount()):
-        feature = layer.GetFeature(feature_index)
+    for feature_index in range(gdal_layer.GetFeatureCount()):
+        feature = gdal_layer.GetFeature(feature_index)
+        if not feature:
+            raise GeoTableError('feature unreadable')
         gdal_geometry = feature.GetGeometryRef()
         shapely_geometry = wkb.loads(transform_gdal_geometry(
             gdal_geometry).ExportToWkb()) if gdal_geometry else None
@@ -106,42 +131,40 @@ def _get_instance_from_layer(Class, layer, transform_gdal_geometry):
     return Class(rows, columns=field_names + ('geometry_object',))
 
 
-def _get_proj4_from_layer(layer):
-    spatial_reference = layer.GetSpatialRef()
+def _get_load_geometry_object(geometry_columns):
+    if geometry_columns[0].lower() == 'wkt':
+
+        def load_geometry_object(row):
+            [geometry_wkt] = row[geometry_columns]
+            try:
+                geometry_object = wkt.loads(geometry_wkt)
+            except WKTReadingError:
+                raise GeoTableError('wkt unparseable (%s)' % geometry_wkt)
+            return geometry_object
+
+        return load_geometry_object
+
+    def load_geometry_object(row):
+        [x, y] = row[geometry_columns]
+        return Point(x, y)
+
+    return load_geometry_object
+
+
+def _get_proj4_from_path(source_path, default_proj4=None):
+    proj4_path = replace_file_extension(source_path, '.proj4')
+    if not exists(proj4_path):
+        return default_proj4 or LONLAT_PROJ4
+    return normalize_proj4(open(proj4_path).read())
+
+
+def _get_proj4_from_gdal_layer(gdal_layer, default_proj4=None):
+    spatial_reference = gdal_layer.GetSpatialRef()
     try:
         proj4 = spatial_reference.ExportToProj4().strip()
     except AttributeError:
-        proj4 = None
+        proj4 = default_proj4 or LONLAT_PROJ4
     return proj4
-
-
-def _get_spatial_reference_from_proj4(proj4):
-    spatial_reference = osr.SpatialReference()
-    try:
-        spatial_reference.ImportFromProj4(proj4)
-    except RuntimeError:
-        raise SpatialReferenceError(
-            "bad spatial reference (proj4='%s')" % proj4)
-    return spatial_reference
-
-
-def _get_transform_gdal_geometry(source_proj4, target_proj4):
-    if not target_proj4 or source_proj4 == target_proj4:
-        return lambda x: x
-    coordinate_transformation = _get_coordinate_transformation(
-        source_proj4, target_proj4)
-
-    def transform_gdal_geometry(gdal_geometry):
-        try:
-            gdal_geometry.Transform(coordinate_transformation)
-        except RuntimeError:
-            raise CoordinateTransformationError((
-                "coordinate transformation failed "
-                "(source_proj4='%s', target_proj4='%s', wkt='%s')"
-            ) % (source_proj4, target_proj4, gdal_geometry.ExportToWkt()))
-        return gdal_geometry
-
-    return transform_gdal_geometry
 
 
 def _has_one_layer(t):
@@ -161,15 +184,7 @@ def _has_standard_proj4(t):
         return True
     geometry_proj4s = t['geometry_proj4'].unique()
     geometry_proj4s = [normalize_proj4(x) for x in geometry_proj4s]
-    return geometry_proj4s == [PROJ4_LONLAT]
-
-
-def _load_geometry_object_from_wkt(geometry_wkt):
-    try:
-        geometry_object = wkt.loads(geometry_wkt)
-    except WKTReadingError:
-        raise GeoTableError("wkt unparseable (wkt='%s')" % geometry_wkt)
-    return geometry_object
+    return geometry_proj4s == [LONLAT_PROJ4]
 
 
 def _transform_field_value(field_value, field_type):
@@ -177,6 +192,11 @@ def _transform_field_value(field_value, field_type):
         field_value = unicode_safely(field_value)
     elif field_type in (ogr.OFTStringList, ogr.OFTWideStringList):
         field_value = [unicode_safely(x) for x in field_value]
+    elif field_type in (ogr.OFTDate, ogr.OFTDateTime):
+        try:
+            field_value = datetime(*map(int, field_value))
+        except ValueError:
+            pass
     return field_value
 
 
@@ -196,4 +216,3 @@ METHOD_NAME_BY_TYPE = {
     ogr.OFTWideString: 'GetFieldAsString',
     ogr.OFTWideStringList: 'GetFieldAsStringList',
 }
-PROJ4_LONLAT = normalize_proj4('+proj=longlat +datum=WGS84 +no_defs')
