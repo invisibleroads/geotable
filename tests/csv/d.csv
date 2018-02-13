@@ -1,0 +1,3 @@
+name,wkt,geometry_layer,geometry_proj4
+aaa,"LINESTRING(-122.1374637 37.3796627,-92.5807231 37.1067189)",l1,+proj=longlat +datum=WGS84 +no_defs
+aaa,"POLYGON((326299 4693415,-1980130 1771892,-716771 4787516,326299 4693415))",l2,+proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs

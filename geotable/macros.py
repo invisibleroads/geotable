@@ -29,7 +29,7 @@ def _get_field_definitions(geotable):
             field_type = ogr.OFTReal
         elif dtype_name.startswith('date'):
             field_type = ogr.OFTDate
-        elif dtype_name == 'object':
+        elif dtype_name in ('object', 'category'):
             field_type = ogr.OFTString
         else:
             L.warning('dtype not supported (%s)' % dtype_name)

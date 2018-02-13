@@ -116,35 +116,8 @@ class GeoTable(DataFrame):
         return Class(t.drop(geometry_columns, axis=1))
 
     def to_shp(self, target_path, target_proj4=None):
-        gdal_driver = gdal.GetDriverByName('ESRI Shapefile')
-        if not gdal_driver:
-            raise GeoTableError('shapefile driver missing')
-        if not has_archive_extension(target_path):
-            raise GeoTableError(
-                'archive extension expected (%s)' % (target_path))
-        field_names = self.field_names
-        field_definitions = _get_field_definitions(self)
-        with TemporaryStorage() as storage:
-            gdal_dataset = gdal_driver.Create(storage.folder, 0, 0)
-            for layer_name, a in self.groupby('geometry_layer'):
-                layer_proj4 = target_proj4 or a.iloc[0]['geometry_proj4']
-                gdal_layer = gdal_dataset.CreateLayer(
-                    layer_name, _get_spatial_reference_from_proj4(layer_proj4))
-                for field_definition in field_definitions:
-                    gdal_layer.CreateField(field_definition)
-                layer_definition = gdal_layer.GetLayerDefn()
-                for source_proj4, b in a.groupby('geometry_proj4'):
-                    transform_geometry = get_transform_shapely_geometry(
-                        source_proj4, layer_proj4)
-                    for index, row in b.iterrows():
-                        ogr_feature = ogr.Feature(layer_definition)
-                        for field_index, field_name in enumerate(field_names):
-                            ogr_feature.SetField2(field_index, row[field_name])
-                        ogr_feature.SetGeometry(ogr.CreateGeometryFromWkb(
-                            transform_geometry(row['geometry_object']).wkb))
-                        gdal_layer.CreateFeature(ogr_feature)
-            gdal_dataset.FlushCache()
-            compress(storage.folder, target_path)
+        return self.to_gdal(
+            target_path, target_proj4, driver_name='ESRI Shapefile')
 
     def to_csv(self, target_path, target_proj4=None, **kw):
         if 'index' not in kw:
@@ -159,6 +132,40 @@ class GeoTable(DataFrame):
                 compress(storage.folder, target_path)
             else:
                 move_path(target_path, temporary_path)
+
+    def to_gdal(
+            self, target_path, target_proj4=None,
+            driver_name='ESRI Shapefile'):
+        gdal_driver = gdal.GetDriverByName(driver_name)
+        if not gdal_driver:
+            raise GeoTableError('gdal driver missing (%s)' % driver_name)
+        if not has_archive_extension(target_path):
+            raise GeoTableError(
+                'archive extension expected (%s)' % (target_path))
+        with TemporaryStorage() as storage:
+            gdal_dataset = gdal_driver.Create(storage.folder, 0, 0)
+            for layer_name, layer_t in self.groupby('geometry_layer'):
+                layer_t = layer_t.dropna(axis=1, how='all')
+                field_names = layer_t.field_names
+                field_definitions = _get_field_definitions(layer_t)
+                layer_proj4 = target_proj4 or layer_t.iloc[0]['geometry_proj4']
+                gdal_layer = gdal_dataset.CreateLayer(
+                    layer_name, _get_spatial_reference_from_proj4(layer_proj4))
+                for field_definition in field_definitions:
+                    gdal_layer.CreateField(field_definition)
+                layer_definition = gdal_layer.GetLayerDefn()
+                for source_proj4, proj4_t in layer_t.groupby('geometry_proj4'):
+                    transform_geometry = get_transform_shapely_geometry(
+                        source_proj4, layer_proj4)
+                    for index, row in proj4_t.iterrows():
+                        ogr_feature = ogr.Feature(layer_definition)
+                        for field_index, field_name in enumerate(field_names):
+                            ogr_feature.SetField2(field_index, row[field_name])
+                        ogr_feature.SetGeometry(ogr.CreateGeometryFromWkb(
+                            transform_geometry(row['geometry_object']).wkb))
+                        gdal_layer.CreateFeature(ogr_feature)
+            gdal_dataset.FlushCache()
+            compress(storage.folder, target_path)
 
     def draw(self):
         return ColorfulGeometryCollection([GeometryCollection(
