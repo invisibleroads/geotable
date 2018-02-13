@@ -7,7 +7,7 @@ from .exceptions import CoordinateTransformationError, SpatialReferenceError
 def get_proj4_from_epsg(epsg):
     spatial_reference = osr.SpatialReference()
     spatial_reference.ImportFromEPSG(epsg)
-    return spatial_reference.ExportToProj4()
+    return normalize_proj4(spatial_reference.ExportToProj4())
 
 
 def _get_transform_gdal_geometry(source_proj4, target_proj4):
@@ -76,4 +76,8 @@ def _get_spatial_reference_from_proj4(proj4):
     return spatial_reference
 
 
-LONLAT_PROJ4 = normalize_proj4('+proj=longlat +datum=WGS84 +no_defs')
+LONGITUDE_LATITUDE_PROJ4 = normalize_proj4(
+    '+proj=longlat +datum=WGS84 +no_defs')
+SPHERICAL_MERCATOR_PROJ4 = normalize_proj4(
+    '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 '
+    '+k=1.0 +units=m +nadgrids=@null +wktext +no_defs')

@@ -1,7 +1,9 @@
 0.2
 ---
-- Add GeoTable.from_shp
-- Add GeoTable.from_csv
+- Add GeoTable.load
+- Add GeoTable.to_csv
+- Add GeoTable.to_shp
+- Add GeoTable.draw
 
 0.1
 ---

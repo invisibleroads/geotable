@@ -1,7 +1,9 @@
-from geotable import GeoTable
+from geotable import ColorfulGeometryCollection, GeoRow, GeoTable
 from geotable.exceptions import GeoTableError
+from geotable.projections import normalize_proj4, LONGITUDE_LATITUDE_PROJ4
 from os.path import join
 from pytest import raises
+from shapely.geometry import Point, LineString, Polygon
 
 from conftest import FOLDER
 
@@ -45,7 +47,14 @@ class TestGeoTable(object):
         with raises(GeoTableError):
             GeoTable.from_csv(str(p))
 
-        GeoTable.from_csv(join(FOLDER, 'csv', 'd.csv'))
+        t = GeoTable.from_csv(join(
+            FOLDER, 'csv', 'd.csv'), target_proj4=LONGITUDE_LATITUDE_PROJ4)
+        assert type(t.iloc[0]['geometry_object']) == LineString
+        assert type(t.iloc[1]['geometry_object']) == Polygon
+
+        t = GeoTable.from_csv(join(FOLDER, 'csv', 'e.csv'))
+        assert t.iloc[0]['geometry_proj4'] == normalize_proj4(open(join(
+            FOLDER, 'csv', 'e.proj4')).read())
 
     def test_to_shp(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.shp'))
@@ -54,6 +63,7 @@ class TestGeoTable(object):
 
         target_path = str(tmpdir.join('x.zip'))
         geotable.to_shp(target_path)
+
         t = GeoTable.load(target_path)
         assert t['float16'].dtype.name == 'float64'
         assert t['float32'].dtype.name == 'float64'
@@ -74,11 +84,46 @@ class TestGeoTable(object):
     def test_to_csv(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.csv'))
         geotable.to_csv(target_path)
+        t = GeoTable.load(target_path)
+        assert t['bool'].dtype.name == 'bool'
 
         target_path = str(tmpdir.join('x.zip'))
         geotable.to_csv(target_path)
+        t = GeoTable.load(target_path)
+        assert t['int64'].dtype.name == 'int64'
 
     def test_to_gdal(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.zip'))
         with raises(GeoTableError):
             geotable.to_gdal(target_path, driver_name='x')
+
+    def test_draw(self, geotable):
+        colorful_geometry_collection = geotable.draw()
+        assert 'circle' in colorful_geometry_collection.svg()
+
+    def test_constructor_sliced(self, geotable):
+        georow = geotable.iloc[0]
+        assert type(georow) == GeoRow
+        assert georow['category'] == 'vegetable'
+
+
+class TestGeoRow(object):
+
+    def test_constructor(self, geotable):
+        georow = geotable.iloc[0].copy()
+        assert type(georow) == GeoRow
+        assert georow['category'] == 'vegetable'
+
+    def test_constructor_expanddim(self, georow):
+        assert type(georow.to_frame()) == GeoTable
+
+    def test_draw(self, georow):
+        geometry = georow.draw()
+        assert 'circle' in geometry.svg()
+
+
+class TestColorfulGeometryCollection(object):
+
+    def test_svg(self):
+        assert ColorfulGeometryCollection().svg() == '<g />'
+        assert 'circle' in ColorfulGeometryCollection([Point(0, 0)]).svg()

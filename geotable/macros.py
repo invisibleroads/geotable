@@ -11,7 +11,7 @@ from shapely.errors import WKTReadingError
 
 from .exceptions import GeoTableError
 from .projections import (
-    get_transform_shapely_geometry, normalize_proj4, LONLAT_PROJ4)
+    get_transform_shapely_geometry, normalize_proj4, LONGITUDE_LATITUDE_PROJ4)
 
 
 L = get_log(__file__)
@@ -154,7 +154,7 @@ def _get_load_geometry_object(geometry_columns):
 def _get_proj4_from_path(source_path, default_proj4=None):
     proj4_path = replace_file_extension(source_path, '.proj4')
     if not exists(proj4_path):
-        return default_proj4 or LONLAT_PROJ4
+        return default_proj4 or LONGITUDE_LATITUDE_PROJ4
     return normalize_proj4(open(proj4_path).read())
 
 
@@ -163,28 +163,14 @@ def _get_proj4_from_gdal_layer(gdal_layer, default_proj4=None):
     try:
         proj4 = spatial_reference.ExportToProj4().strip()
     except AttributeError:
-        proj4 = default_proj4 or LONLAT_PROJ4
-    return proj4
-
-
-def _has_one_layer(t):
-    if 'geometry_layer' not in t.columns:
-        return True
-    return len(t['geometry_layer'].unique()) == 1
+        proj4 = default_proj4 or LONGITUDE_LATITUDE_PROJ4
+    return normalize_proj4(proj4)
 
 
 def _has_one_proj4(t):
     if 'geometry_proj4' not in t.columns:
         return True
     return len(t['geometry_proj4'].unique()) == 1
-
-
-def _has_standard_proj4(t):
-    if 'geometry_proj4' not in t.columns:
-        return True
-    geometry_proj4s = t['geometry_proj4'].unique()
-    geometry_proj4s = [normalize_proj4(x) for x in geometry_proj4s]
-    return geometry_proj4s == [LONLAT_PROJ4]
 
 
 def _transform_field_value(field_value, field_type):

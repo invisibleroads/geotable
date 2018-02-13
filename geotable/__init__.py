@@ -1,12 +1,7 @@
 import utm
 from invisibleroads_macros.disk import (
-    TemporaryStorage,
-    compress,
-    find_paths,
-    get_file_stem,
-    has_archive_extension,
-    move_path,
-    uncompress)
+    TemporaryStorage, compress, find_paths, get_file_stem,
+    has_archive_extension, move_path, uncompress)
 from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.html import make_random_color
 from invisibleroads_macros.text import unicode_safely
@@ -24,14 +19,15 @@ from .macros import (
 from .projections import (
     _get_spatial_reference_from_proj4, _get_transform_gdal_geometry,
     get_transform_shapely_geometry, get_utm_proj4, normalize_proj4,
-    LONLAT_PROJ4)
+    LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
 
 
 class GeoTable(DataFrame):
 
     @classmethod
     def load_utm_proj4(Class, source_path):
-        geotable = Class.load(source_path, target_proj4=LONLAT_PROJ4)
+        geotable = Class.load(
+            source_path, target_proj4=LONGITUDE_LATITUDE_PROJ4)
         lonlat_point = GeometryCollection(geotable.geometries).centroid
         longitude, latitude = lonlat_point.x, lonlat_point.y
         zone_number, zone_letter = utm.from_latlon(latitude, longitude)[-2:]
@@ -73,10 +69,8 @@ class GeoTable(DataFrame):
         for layer_index in range(gdal_dataset.GetLayerCount()):
             gdal_layer = gdal_dataset.GetLayer(layer_index)
             row_proj4 = _get_proj4_from_gdal_layer(gdal_layer, source_proj4)
-            transform_geometry = _get_transform_gdal_geometry(
-                row_proj4, target_proj4)
-            t = _get_instance_from_gdal_layer(
-                Class, gdal_layer, transform_geometry)
+            f = _get_transform_gdal_geometry(row_proj4, target_proj4)
+            t = _get_instance_from_gdal_layer(Class, gdal_layer, f)
             t['geometry_layer'] = unicode_safely(gdal_layer.GetName())
             t['geometry_proj4'] = normalize_proj4(target_proj4 or row_proj4)
             instances.append(t)
@@ -95,20 +89,16 @@ class GeoTable(DataFrame):
         geometry_objects = []
         if _has_one_proj4(t):
             row_proj4 = t.iloc[0].get('geometry_proj4', source_proj4)
-            transform_geometry = get_transform_shapely_geometry(
-                row_proj4, target_proj4)
+            f = get_transform_shapely_geometry(row_proj4, target_proj4)
             for index, row in t.iterrows():
-                geometry_objects.append(transform_geometry(
-                    load_geometry_object(row)))
+                geometry_objects.append(f(load_geometry_object(row)))
             t['geometry_proj4'] = normalize_proj4(target_proj4 or row_proj4)
         else:
             geometry_proj4s = []
             for index, row in t.iterrows():
                 row_proj4 = row.get('geometry_proj4', source_proj4)
-                transform_geometry = get_transform_shapely_geometry(
-                    row_proj4, target_proj4)
-                geometry_objects.append(transform_geometry(
-                    load_geometry_object(row)))
+                f = get_transform_shapely_geometry(row_proj4, target_proj4)
+                geometry_objects.append(f(load_geometry_object(row)))
                 geometry_proj4s.append(normalize_proj4(
                     target_proj4 or row_proj4))
             t['geometry_proj4'] = geometry_proj4s
@@ -123,7 +113,7 @@ class GeoTable(DataFrame):
         if 'index' not in kw:
             kw['index'] = False
         t = concat(_get_instance_for_csv(
-            x, source_proj4 or LONLAT_PROJ4, target_proj4,
+            x, source_proj4 or LONGITUDE_LATITUDE_PROJ4, target_proj4,
         ) for source_proj4, x in self.groupby('geometry_proj4'))
         with TemporaryStorage() as storage:
             temporary_path = join(storage.folder, 'geotable.csv')
@@ -155,22 +145,31 @@ class GeoTable(DataFrame):
                     gdal_layer.CreateField(field_definition)
                 layer_definition = gdal_layer.GetLayerDefn()
                 for source_proj4, proj4_t in layer_t.groupby('geometry_proj4'):
-                    transform_geometry = get_transform_shapely_geometry(
+                    f = get_transform_shapely_geometry(
                         source_proj4, layer_proj4)
                     for index, row in proj4_t.iterrows():
                         ogr_feature = ogr.Feature(layer_definition)
                         for field_index, field_name in enumerate(field_names):
                             ogr_feature.SetField2(field_index, row[field_name])
                         ogr_feature.SetGeometry(ogr.CreateGeometryFromWkb(
-                            transform_geometry(row['geometry_object']).wkb))
+                            f(row['geometry_object']).wkb))
                         gdal_layer.CreateFeature(ogr_feature)
             gdal_dataset.FlushCache()
             compress(storage.folder, target_path)
 
     def draw(self):
+        'Render layers in Jupyter Notebook'
         return ColorfulGeometryCollection([GeometryCollection(
-            x.geometries
+            x.get_geometries(SPHERICAL_MERCATOR_PROJ4)
         ) for _, x in self.groupby('geometry_layer')])
+
+    def get_geometries(self, target_proj4=None):
+        geometry_by_index = {}
+        for source_proj4, proj4_t in self.groupby('geometry_proj4'):
+            f = get_transform_shapely_geometry(source_proj4, target_proj4)
+            for index, row in proj4_t.iterrows():
+                geometry_by_index[index] = f(row['geometry_object'])
+        return list(Series(geometry_by_index)[self.index])
 
     @property
     def field_names(self):
@@ -192,6 +191,15 @@ class GeoTable(DataFrame):
 
 class GeoRow(Series):
 
+    def draw(self):
+        'Render geometry in Jupyter Notebook'
+        return self.get_geometry(SPHERICAL_MERCATOR_PROJ4)
+
+    def get_geometry(self, target_proj4=None):
+        source_proj4 = self['geometry_proj4']
+        f = get_transform_shapely_geometry(source_proj4, target_proj4)
+        return f(self['geometry_object'])
+
     @property
     def _constructor(self):
         return GeoRow
@@ -206,14 +214,11 @@ class ColorfulGeometryCollection(GeometryCollection):
     def __init__(self, geoms=None, colors=None):
         super(ColorfulGeometryCollection, self).__init__(geoms)
         self.colors = colors or [make_random_color() for x in range(len(
-            geoms))]
+            geoms or []))]
 
     def svg(self, scale_factor=1.0, color=None):
         if self.is_empty:
             return '<g />'
-        if not self.colors:
-            return super(ColorfulGeometryCollection, self).svg(
-                scale_factor, color)
         return '<g>%s</g>' % ''.join(p.svg(scale_factor, c) for p, c in zip(
             self, self.colors))
 
