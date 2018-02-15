@@ -168,6 +168,8 @@ def _get_proj4_from_gdal_layer(gdal_layer, default_proj4=None):
 
 
 def _has_one_proj4(t):
+    if len(t) < 1:
+        return False
     if 'geometry_proj4' not in t.columns:
         return True
     return len(t['geometry_proj4'].unique()) == 1
