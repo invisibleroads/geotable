@@ -4,6 +4,7 @@
 - Add GeoTable.to_csv
 - Add GeoTable.to_shp
 - Add GeoTable.draw
+- Support LONGITUDE_LATITUDE_WKT, LATITUDE_LONGITUDE_WKT
 
 0.1
 ---

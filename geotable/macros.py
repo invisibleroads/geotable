@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from datetime import datetime
 from invisibleroads_macros.disk import replace_file_extension
+from invisibleroads_macros.geometry import flip_xy, transform_geometries
 from invisibleroads_macros.log import get_log
 from invisibleroads_macros.text import unicode_safely
 from os.path import exists
@@ -53,6 +54,10 @@ def _get_geometry_columns(table):
     column_names = table.columns
     for column_name in column_names:
         if column_name.lower() == 'wkt':
+            return [column_name]
+        if column_name.lower() == 'longitude_latitude_wkt':
+            return [column_name]
+        if column_name.lower() == 'latitude_longitude_wkt':
             return [column_name]
 
     longitude_column, latitude_column = None, None
@@ -131,31 +136,38 @@ def _get_instance_from_gdal_layer(Class, gdal_layer, transform_gdal_geometry):
     return Class(rows, columns=field_names + ('geometry_object',))
 
 
-def _get_load_geometry_object(geometry_columns):
-    if geometry_columns[0].lower() == 'wkt':
-
-        def load_geometry_object(row):
-            [geometry_wkt] = row[geometry_columns]
-            try:
-                geometry_object = wkt.loads(geometry_wkt)
-            except WKTReadingError:
-                raise GeoTableError('wkt unparseable (%s)' % geometry_wkt)
-            return geometry_object
-
-        return load_geometry_object
-
-    def load_geometry_object(row):
-        [x, y] = row[geometry_columns]
-        return Point(x, y)
-
-    return load_geometry_object
-
-
-def _get_proj4_from_path(source_path, default_proj4=None):
+def _get_proj4_from_path(source_path, default_proj4):
     proj4_path = replace_file_extension(source_path, '.proj4')
     if not exists(proj4_path):
         return default_proj4 or LONGITUDE_LATITUDE_PROJ4
     return normalize_proj4(open(proj4_path).read())
+
+
+def _get_load_geometry_object(geometry_columns):
+    if len(geometry_columns) == 2:
+        return lambda row: Point(*list(row[geometry_columns]))
+
+    def load_geometry_object(row):
+        [geometry_wkt] = row[geometry_columns]
+        try:
+            geometry_object = wkt.loads(geometry_wkt)
+        except WKTReadingError:
+            raise GeoTableError('wkt unparseable (%s)' % geometry_wkt)
+        return geometry_object
+
+    column_name = geometry_columns[0].lower()
+    if column_name in ('wkt', 'longitude_latitude_wkt'):
+        return load_geometry_object
+    elif column_name == 'latitude_longitude_wkt':
+
+        def load_flipped_geometry_object(row):
+            geometry_object = load_geometry_object(row)
+            return transform_geometries([geometry_object], flip_xy)[0]
+
+        return load_flipped_geometry_object
+    else:
+        raise GeoTableError(
+            'geometry columns not supported (%s)' % ' '.join(geometry_columns))
 
 
 def _get_proj4_from_gdal_layer(gdal_layer, default_proj4=None):

@@ -1,28 +1,36 @@
+import pandas as pd
 import utm
 from invisibleroads_macros.disk import (
     TemporaryStorage, compress, find_paths, get_file_stem,
     has_archive_extension, move_path, uncompress)
 from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.html import make_random_color
+from invisibleroads_macros.table import load_csv_safely
 from invisibleroads_macros.text import unicode_safely
 from os.path import join
 from osgeo import gdal, ogr, osr
-from pandas import DataFrame, Series, concat, read_csv
 from shapely.geometry import GeometryCollection
 
-from .exceptions import GeoTableError
+from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
-    _get_field_definitions, _get_geometry_columns, _get_instance_for_csv,
-    _get_instance_from_gdal_layer, _get_load_geometry_object,
-    _get_proj4_from_path, _get_proj4_from_gdal_layer,
+    _get_field_definitions,
+    _get_geometry_columns,
+    _get_instance_for_csv,
+    _get_instance_from_gdal_layer,
+    _get_load_geometry_object,
+    _get_proj4_from_gdal_layer,
+    _get_proj4_from_path,
     _has_one_proj4)
 from .projections import (
-    _get_spatial_reference_from_proj4, _get_transform_gdal_geometry,
-    get_transform_shapely_geometry, get_utm_proj4, normalize_proj4,
-    LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
+    _get_spatial_reference_from_proj4,
+    _get_transform_gdal_geometry,
+    get_transform_shapely_geometry,
+    get_utm_proj4, normalize_proj4,
+    LONGITUDE_LATITUDE_PROJ4,
+    SPHERICAL_MERCATOR_PROJ4)
 
 
-class GeoTable(DataFrame):
+class GeoTable(pd.DataFrame):
 
     @classmethod
     def load_utm_proj4(Class, source_path):
@@ -57,7 +65,7 @@ class GeoTable(DataFrame):
                 t = Class.from_csv(x, source_proj4, target_proj4, **kw)
                 t['geometry_layer'] = unicode_safely(get_file_stem(x))
                 instances.append(t)
-            return concat(instances)
+            return pd.concat(instances)
 
     @classmethod
     def from_shp(Class, source_path, source_proj4=None, target_proj4=None):
@@ -74,12 +82,15 @@ class GeoTable(DataFrame):
             t['geometry_layer'] = unicode_safely(gdal_layer.GetName())
             t['geometry_proj4'] = normalize_proj4(target_proj4 or row_proj4)
             instances.append(t)
-        return concat(instances)
+        return pd.concat(instances)
 
     @classmethod
     def from_csv(
             Class, source_path, source_proj4=None, target_proj4=None, **kw):
-        t = read_csv(source_path, **kw)
+        try:
+            t = load_csv_safely(source_path, **kw)
+        except pd.errors.EmptyDataError:
+            raise EmptyGeoTableError('file empty (%s)' % source_path)
         try:
             geometry_columns = _get_geometry_columns(t)
         except GeoTableError as e:
@@ -112,7 +123,7 @@ class GeoTable(DataFrame):
     def to_csv(self, target_path, target_proj4=None, **kw):
         if 'index' not in kw:
             kw['index'] = False
-        t = concat(_get_instance_for_csv(
+        t = pd.concat(_get_instance_for_csv(
             x, source_proj4 or LONGITUDE_LATITUDE_PROJ4, target_proj4,
         ) for source_proj4, x in self.groupby('geometry_proj4'))
         with TemporaryStorage() as storage:
@@ -169,7 +180,7 @@ class GeoTable(DataFrame):
             f = get_transform_shapely_geometry(source_proj4, target_proj4)
             for index, row in proj4_t.iterrows():
                 geometry_by_index[index] = f(row['geometry_object'])
-        return list(Series(geometry_by_index)[self.index])
+        return list(pd.Series(geometry_by_index)[self.index])
 
     @property
     def field_names(self):
@@ -189,7 +200,7 @@ class GeoTable(DataFrame):
         return GeoRow
 
 
-class GeoRow(Series):
+class GeoRow(pd.Series):
 
     def draw(self):
         'Render geometry in Jupyter Notebook'

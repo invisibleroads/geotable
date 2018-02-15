@@ -1,9 +1,9 @@
 import numpy as np
+import pandas as pd
 from collections import OrderedDict
 from datetime import date, datetime, timedelta, timezone
 from osgeo import ogr
 from os.path import dirname
-from pandas import DataFrame
 from shapely.geometry import Point
 
 from geotable import GeoRow, GeoTable
@@ -43,7 +43,7 @@ def prepare_feature(name_type_value_packs):
 
 FOLDER = dirname(__file__)
 TIMEZONE = timezone(timedelta(hours=1))
-GEOTABLE = GeoTable(DataFrame([{
+GEOTABLE = GeoTable(pd.DataFrame([{
     'float16': 0.1,
     'float32': 0.1,
     'float64': 0.1,

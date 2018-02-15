@@ -1,5 +1,5 @@
 from geotable import ColorfulGeometryCollection, GeoRow, GeoTable
-from geotable.exceptions import GeoTableError
+from geotable.exceptions import EmptyGeoTableError, GeoTableError
 from geotable.projections import normalize_proj4, LONGITUDE_LATITUDE_PROJ4
 from os.path import join
 from pytest import raises
@@ -38,6 +38,10 @@ class TestGeoTable(object):
 
     def test_from_csv(self, tmpdir):
         p = tmpdir.join('x.csv')
+
+        p.write('')
+        with raises(EmptyGeoTableError):
+            GeoTable.from_csv(str(p))
 
         p.write('x\n0')
         with raises(GeoTableError):
