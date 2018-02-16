@@ -61,37 +61,41 @@ def _get_geometry_columns(table):
         if normalized_column_name == 'latitudelongitudewkt':
             return [column_name]
 
-    longitude_column, latitude_column = None, None
-    for column_name in column_names:
-        normalized_column_name = _normalize_column_name(column_name)
-        if normalized_column_name == 'longitude':
-            longitude_column = column_name
-        elif normalized_column_name == 'latitude':
-            latitude_column = column_name
-    if longitude_column and latitude_column:
-        return [longitude_column, latitude_column]
+    paired_columns = _get_paired_columns(
+        column_names, lambda _: _ == 'longitude', lambda _: _ == 'latitude')
+    if paired_columns:
+        return paired_columns
 
-    lon_column, lat_column = None, None
-    for column_name in column_names:
-        normalized_column_name = _normalize_column_name(column_name)
-        if normalized_column_name == 'lon':
-            lon_column = column_name
-        elif normalized_column_name == 'lat':
-            lat_column = column_name
-    if lon_column and lat_column:
-        return [lon_column, lat_column]
+    paired_columns = _get_paired_columns(
+        column_names,
+        lambda _: _.endswith('longitude'),
+        lambda _: _.endswith('latitude'))
+    if paired_columns:
+        return paired_columns
 
+    paired_columns = _get_paired_columns(
+        column_names, lambda _: _ == 'lon', lambda _: _ == 'lat')
+    if paired_columns:
+        return paired_columns
+
+    paired_columns = _get_paired_columns(
+        column_names, lambda _: _ == 'x', lambda _: _ == 'y')
+    if paired_columns:
+        return paired_columns
+
+    raise GeoTableError('geometry columns expected')
+
+
+def _get_paired_columns(column_names, is_x, is_y):
     x_column, y_column = None, None
     for column_name in column_names:
         normalized_column_name = _normalize_column_name(column_name)
-        if normalized_column_name == 'x':
+        if is_x(normalized_column_name):
             x_column = column_name
-        elif normalized_column_name == 'y':
+        elif is_y(normalized_column_name):
             y_column = column_name
     if x_column and y_column:
         return [x_column, y_column]
-
-    raise GeoTableError('geometry columns expected')
 
 
 def _get_get_field_values(field_type_by_name):

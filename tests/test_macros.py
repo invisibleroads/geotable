@@ -33,6 +33,9 @@ def test_get_geometry_columns():
     t = pd.DataFrame([(0, 0)], columns=['Longitude', 'Latitude'])
     assert _get_geometry_columns(t) == ['Longitude', 'Latitude']
 
+    t = pd.DataFrame([(0, 0)], columns=['IncredibleLongitude', 'IncredibleLatitude'])
+    assert _get_geometry_columns(t) == ['IncredibleLongitude', 'IncredibleLatitude']
+
     t = pd.DataFrame([(0, 0)], columns=['LON', 'LAT'])
     assert _get_geometry_columns(t) == ['LON', 'LAT']
 
