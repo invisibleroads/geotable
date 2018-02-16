@@ -53,36 +53,40 @@ def _get_field_type_by_name(gdal_layer):
 def _get_geometry_columns(table):
     column_names = table.columns
     for column_name in column_names:
-        if column_name.lower() == 'wkt':
+        normalized_column_name = _normalize_column_name(column_name)
+        if normalized_column_name == 'wkt':
             return [column_name]
-        if column_name.lower() == 'longitude_latitude_wkt':
+        if normalized_column_name == 'longitudelatitudewkt':
             return [column_name]
-        if column_name.lower() == 'latitude_longitude_wkt':
+        if normalized_column_name == 'latitudelongitudewkt':
             return [column_name]
 
     longitude_column, latitude_column = None, None
     for column_name in column_names:
-        if column_name.lower() == 'longitude':
+        normalized_column_name = _normalize_column_name(column_name)
+        if normalized_column_name == 'longitude':
             longitude_column = column_name
-        elif column_name.lower() == 'latitude':
+        elif normalized_column_name == 'latitude':
             latitude_column = column_name
     if longitude_column and latitude_column:
         return [longitude_column, latitude_column]
 
     lon_column, lat_column = None, None
     for column_name in column_names:
-        if column_name.lower() == 'lon':
+        normalized_column_name = _normalize_column_name(column_name)
+        if normalized_column_name == 'lon':
             lon_column = column_name
-        elif column_name.lower() == 'lat':
+        elif normalized_column_name == 'lat':
             lat_column = column_name
     if lon_column and lat_column:
         return [lon_column, lat_column]
 
     x_column, y_column = None, None
     for column_name in column_names:
-        if column_name.lower() == 'x':
+        normalized_column_name = _normalize_column_name(column_name)
+        if normalized_column_name == 'x':
             x_column = column_name
-        elif column_name.lower() == 'y':
+        elif normalized_column_name == 'y':
             y_column = column_name
     if x_column and y_column:
         return [x_column, y_column]
@@ -155,10 +159,10 @@ def _get_load_geometry_object(geometry_columns):
             raise GeoTableError('wkt unparseable (%s)' % geometry_wkt)
         return geometry_object
 
-    column_name = geometry_columns[0].lower()
-    if column_name in ('wkt', 'longitude_latitude_wkt'):
+    column_name = _normalize_column_name(geometry_columns[0])
+    if column_name in ('wkt', 'longitudelatitudewkt'):
         return load_geometry_object
-    elif column_name == 'latitude_longitude_wkt':
+    elif column_name == 'latitudelongitudewkt':
 
         def load_flipped_geometry_object(row):
             geometry_object = load_geometry_object(row)
@@ -185,6 +189,10 @@ def _has_one_proj4(t):
     if 'geometry_proj4' not in t.columns:
         return True
     return len(t['geometry_proj4'].unique()) == 1
+
+
+def _normalize_column_name(x):
+    return x.lower().replace('_', '')
 
 
 def _transform_field_value(field_value, field_type):

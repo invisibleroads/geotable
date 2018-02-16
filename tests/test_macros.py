@@ -18,8 +18,14 @@ def test_get_geometry_columns():
     t = pd.DataFrame([('POINT(0 0)',)], columns=['WKT'])
     assert _get_geometry_columns(t) == ['WKT']
 
+    t = pd.DataFrame([('POINT(0 0)',)], columns=['LongitudeLatitudeWkt'])
+    assert _get_geometry_columns(t) == ['LongitudeLatitudeWkt']
+
     t = pd.DataFrame([('POINT(0 0)',)], columns=['LONGITUDE_LATITUDE_WKT'])
     assert _get_geometry_columns(t) == ['LONGITUDE_LATITUDE_WKT']
+
+    t = pd.DataFrame([('POINT(0 0)',)], columns=['LatitudeLongitudeWkt'])
+    assert _get_geometry_columns(t) == ['LatitudeLongitudeWkt']
 
     t = pd.DataFrame([('POINT(0 0)',)], columns=['LATITUDE_LONGITUDE_WKT'])
     assert _get_geometry_columns(t) == ['LATITUDE_LONGITUDE_WKT']
@@ -65,8 +71,14 @@ def test_get_load_geometry_object():
     f = _get_load_geometry_object(['x', 'y'])
     f(pd.Series({'x': 1, 'y': 2})) == Point(1, 2)
 
+    f = _get_load_geometry_object(['LongitudeLatitudeWkt'])
+    f(pd.Series({'LongitudeLatitudeWkt': 'POINT (1 2)'})) == Point(1, 2)
+
     f = _get_load_geometry_object(['longitude_latitude_wkt'])
     f(pd.Series({'longitude_latitude_wkt': 'POINT (1 2)'})) == Point(1, 2)
+
+    f = _get_load_geometry_object(['LatitudeLongitudeWkt'])
+    f(pd.Series({'LatitudeLongitudeWkt': 'POINT (2 1)'})) == Point(1, 2)
 
     f = _get_load_geometry_object(['latitude_longitude_wkt'])
     f(pd.Series({'latitude_longitude_wkt': 'POINT (2 1)'})) == Point(1, 2)
