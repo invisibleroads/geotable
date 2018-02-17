@@ -85,9 +85,11 @@ Load and save in `different spatial references <http://spatialreference.org>`_. 
 
     from geotable.projections import LONGITUDE_LATITUDE_PROJ4
     t.to_csv('/tmp/csv.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+    t.to_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
 
 Use `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system>`_. ::
 
     utm_proj4 = GeoTable.load_utm_proj4('shp.zip')
     t = GeoTable.load('csv.zip', target_proj4=utm_proj4)
+    t.to_csv('/tmp/csv.zip', target_proj4=utm_proj4)
     t.to_shp('/tmp/shp.zip', target_proj4=utm_proj4)
