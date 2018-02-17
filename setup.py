@@ -5,10 +5,10 @@ from setuptools import find_packages, setup
 ENTRY_POINTS = """
 """
 REQUIREMENTS = [
-    # 'gdal',
+    'gdal',
     'invisibleroads_macros',
     'pandas',
-    # 'shapely',
+    'shapely[vectorized]',
     'utm',
 ]
 FOLDER = dirname(abspath(__file__))
