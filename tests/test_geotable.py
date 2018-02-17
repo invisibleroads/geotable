@@ -20,8 +20,21 @@ class TestGeoTable(object):
         t = GeoTable.load(join(FOLDER, 'shp', 'a.shp'))
         assert t['date'].dtype.name == 'datetime64[ns]'
 
-        t = GeoTable.load(join(FOLDER, 'csv', 'a.csv'), parse_dates=['date'])
+        t = GeoTable.load(join(FOLDER, 'csv', 'lat_lon.csv'))
+        assert t.iloc[0]['geometry_object'].x == -83.7430378
+
+        t = GeoTable.load(join(FOLDER, 'csv', 'latitude_longitude.csv'))
+        assert t.iloc[0]['geometry_object'].x == -91.5305465
+
+        t = GeoTable.load(join(FOLDER, 'csv', 'latitude_longitude_wkt.csv'))
+        assert t.iloc[0]['geometry_object'].x == -71.10973349999999
+
+        t = GeoTable.load(join(FOLDER, 'csv', 'longitude_latitude_wkt.csv'))
+        assert t.iloc[0]['geometry_object'].x == -71.10973349999999
+
+        t = GeoTable.load(join(FOLDER, 'csv', 'wkt.csv'), parse_dates=['date'])
         assert t['date'].dtype.name == 'datetime64[ns]'
+        assert t.iloc[0]['geometry_object'].type == 'Point'
 
         with raises(GeoTableError):
             GeoTable.load(join(FOLDER, 'conftest.py'))
@@ -51,14 +64,15 @@ class TestGeoTable(object):
         with raises(GeoTableError):
             GeoTable.from_csv(str(p))
 
-        t = GeoTable.from_csv(join(
-            FOLDER, 'csv', 'd.csv'), target_proj4=LONGITUDE_LATITUDE_PROJ4)
+        t = GeoTable.from_csv(
+            join(FOLDER, 'csv', 'proj4_from_row.csv'),
+            target_proj4=LONGITUDE_LATITUDE_PROJ4)
         assert type(t.iloc[0]['geometry_object']) == LineString
         assert type(t.iloc[1]['geometry_object']) == Polygon
 
-        t = GeoTable.from_csv(join(FOLDER, 'csv', 'e.csv'))
+        t = GeoTable.from_csv(join(FOLDER, 'csv', 'proj4_from_file.csv'))
         assert t.iloc[0]['geometry_proj4'] == normalize_proj4(open(join(
-            FOLDER, 'csv', 'e.proj4')).read())
+            FOLDER, 'csv', 'proj4_from_file.proj4')).read())
 
     def test_to_shp(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.shp'))

@@ -1,0 +1,2 @@
+name,quantity,cost,date,latitude_longitude_wkt
+a,1,0.33,1980-01-01,POINT(42.3736158 -71.10973349999999)
