@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 ENTRY_POINTS = """
 """
 REQUIREMENTS = [
-    'gdal',
+    # 'gdal',
     'invisibleroads_macros',
     'pandas',
     'shapely[vectorized]',
