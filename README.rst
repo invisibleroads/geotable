@@ -87,9 +87,11 @@ Load and save in `different spatial references <http://spatialreference.org>`_. 
     t.to_csv('/tmp/csv.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
     t.to_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
 
-Use `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system>`_. ::
+Use the `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system>`_ projection for compatibility with algorithms that use Euclidean distance on XY coordinates such as those found in `scipy.spatial <https://docs.scipy.org/doc/scipy/reference/spatial.html>`_. If you know that your locations are confined to a small region, you can use the projected XY coordinates with standard Euclidean based algorithms, which tend to be significantly faster than their geodesic variants. ::
 
     utm_proj4 = GeoTable.load_utm_proj4('shp.zip')
     t = GeoTable.load('csv.zip', target_proj4=utm_proj4)
     t.to_csv('/tmp/csv.zip', target_proj4=utm_proj4)
     t.to_shp('/tmp/shp.zip', target_proj4=utm_proj4)
+
+Use LONGITUDE_LATITUDE_PROJ4 for compatibility with algorithms that use geodesic distance such as those found in `geopy <https://pypi.python.org/pypi/geopy>`_ and `pysal <http://pysal.readthedocs.io/en/latest>`_. Geodesic distance is also known as arc distance and is the distance between two points as measured using the curvature of the Earth. If your locations are spread over a large geographic extent, geodesic longitude and latitude coordinates provide greater accuracy than Euclidean XY coordinates.
