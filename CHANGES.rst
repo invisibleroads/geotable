@@ -1,3 +1,7 @@
+0.3
+---
+- Support SOPHISTICATED_LONGITUDE and INSPIRING_LATITUDE
+
 0.2
 ---
 - Add GeoTable.load
