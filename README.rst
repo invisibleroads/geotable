@@ -42,40 +42,40 @@ Load CSVs containing spatial information. ::
 
 Handle CSVs with different geometry columns. ::
 
-    $ cat latitude_longitude.csv                                                   
-    name,quantity,cost,date,latitude,longitude                  
-    b,2,0.66,1990-01-01,14.8520705,-91.5305465                  
+    $ cat latitude_longitude.csv
+    name,quantity,cost,date,latitude,longitude
+    b,2,0.66,1990-01-01,14.8520705,-91.5305465
 
-    $ cat lat_lon.csv  
-    name,quantity,cost,date,lat,lon                             
-    c,3,0.99,2000-01-01,42.2808256,-83.7430378                  
+    $ cat lat_lon.csv
+    name,quantity,cost,date,lat,lon
+    c,3,0.99,2000-01-01,42.2808256,-83.7430378
 
-    $ cat latitude_longitude_wkt.csv                                               
-    name,quantity,cost,date,latitude_longitude_wkt              
-    a,1,0.33,1980-01-01,POINT(42.3736158 -71.10973349999999)    
+    $ cat latitude_longitude_wkt.csv
+    name,quantity,cost,date,latitude_longitude_wkt
+    a,1,0.33,1980-01-01,POINT(42.3736158 -71.10973349999999)
 
-    $ cat longitude_latitude_wkt.csv                                               
-    name,quantity,cost,date,longitude_latitude_wkt              
-    a,1,0.33,1980-01-01,POINT(-71.10973349999999 42.3736158)    
+    $ cat longitude_latitude_wkt.csv
+    name,quantity,cost,date,longitude_latitude_wkt
+    a,1,0.33,1980-01-01,POINT(-71.10973349999999 42.3736158)
 
-    $ cat wkt.csv      
-    name,quantity,cost,date,wkt   
-    aaa,1,0.33,1980-01-01,"POINT(-71.10973349999999 42.3736158)"                                                            
-    bbb,1,0.33,1980-01-01,"LINESTRING(-122.1374637 37.3796627,-92.5807231 37.1067189)"                                      
+    $ cat wkt.csv
+    name,quantity,cost,date,wkt
+    aaa,1,0.33,1980-01-01,"POINT(-71.10973349999999 42.3736158)"
+    bbb,1,0.33,1980-01-01,"LINESTRING(-122.1374637 37.3796627,-92.5807231 37.1067189)"
     ccc,1,0.33,1980-01-01,"POLYGON ((-83.10973350093332 42.37361082304877, -103.5305394806998 14.85206885307358, -95.7430260175515 42.28082607112266, -83.10973350093332 42.37361082304877))"
 
 Handle CSVs with different spatial references. ::
 
-    $ cat proj4_from_file.csv                                                      
-    name,wkt                      
-    aaa,"POLYGON((326299 4693415,-1980130 1771892,-716771 4787516,326299 4693415))"                                         
+    $ cat proj4_from_file.csv
+    name,wkt
+    aaa,"POLYGON((326299 4693415,-1980130 1771892,-716771 4787516,326299 4693415))"
 
-    $ cat proj4_from_file.proj4                                                    
-    +proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs                                                          
+    $ cat proj4_from_file.proj4
+    +proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs
 
-    $ cat proj4_from_row.csv                                                       
-    name,wkt,geometry_layer,geometry_proj4                      
-    aaa,"LINESTRING(-122.1374637 37.3796627,-92.5807231 37.1067189)",l1,+proj=longlat +datum=WGS84 +no_defs                 
+    $ cat proj4_from_row.csv
+    name,wkt,geometry_layer,geometry_proj4
+    aaa,"LINESTRING(-122.1374637 37.3796627,-92.5807231 37.1067189)",l1,+proj=longlat +datum=WGS84 +no_defs
     aaa,"POLYGON((326299 4693415,-1980130 1771892,-716771 4787516,326299 4693415))",l2,+proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs
 
 Load and save in `different spatial references <http://spatialreference.org>`_. ::
