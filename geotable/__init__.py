@@ -60,12 +60,9 @@ class GeoTable(pd.DataFrame):
                     source_folder, source_proj4, target_proj4)
             except GeoTableError:
                 pass
-            instances = []
-            for x in find_paths(source_folder, '*.csv'):
-                t = Class.from_csv(x, source_proj4, target_proj4, **kw)
-                t['geometry_layer'] = unicode_safely(get_file_stem(x))
-                instances.append(t)
-            return pd.concat(instances)
+            return pd.concat(Class.from_csv(
+                x, source_proj4, target_proj4, **kw,
+            ) for x in find_paths(source_folder, '*.csv'))
 
     @classmethod
     def from_shp(Class, source_path, source_proj4=None, target_proj4=None):
@@ -98,6 +95,7 @@ class GeoTable(pd.DataFrame):
         load_geometry_object = _get_load_geometry_object(geometry_columns)
         source_proj4 = _get_proj4_from_path(source_path, source_proj4)
         geometry_objects = []
+        t['geometry_layer'] = unicode_safely(get_file_stem(source_path))
         if _has_one_proj4(t):
             row_proj4 = t.iloc[0].get('geometry_proj4', source_proj4)
             f = get_transform_shapely_geometry(row_proj4, target_proj4)

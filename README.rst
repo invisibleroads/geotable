@@ -84,6 +84,12 @@ Load and save in `different spatial references <http://spatialreference.org>`_. 
     t = GeoTable.load('shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
 
     from geotable.projections import LONGITUDE_LATITUDE_PROJ4
+    t.to_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+
+Use LONGITUDE_LATITUDE_PROJ4 for compatibility with algorithms that use geodesic distance such as those found in `geopy <https://pypi.python.org/pypi/geopy>`_ and `pysal <http://pysal.readthedocs.io/en/latest>`_. Geodesic distance is also known as arc distance and is the distance between two points as measured using the curvature of the Earth. If your locations are spread over a large geographic extent, geodesic longitude and latitude coordinates provide greater accuracy than Euclidean XY coordinates. ::
+
+    from geotable.projections import LONGITUDE_LATITUDE_PROJ4
+    t = GeoTable.load('shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
     t.to_csv('/tmp/csv.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
     t.to_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
 
@@ -94,4 +100,14 @@ Use the `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Univ
     t.to_csv('/tmp/csv.zip', target_proj4=utm_proj4)
     t.to_shp('/tmp/shp.zip', target_proj4=utm_proj4)
 
-Use LONGITUDE_LATITUDE_PROJ4 for compatibility with algorithms that use geodesic distance such as those found in `geopy <https://pypi.python.org/pypi/geopy>`_ and `pysal <http://pysal.readthedocs.io/en/latest>`_. Geodesic distance is also known as arc distance and is the distance between two points as measured using the curvature of the Earth. If your locations are spread over a large geographic extent, geodesic longitude and latitude coordinates provide greater accuracy than Euclidean XY coordinates.
+Use the `Spherical Mercator <https://en.wikipedia.org/wiki/Web_Mercator>`_ projection when visualization is more important than accuracy. Do not use this projection for algorithms where spatial accuracy is important.
+
+    from geotable.projections import SPHERICAL_MERCATOR_PROJ4
+    t = GeoTable.load('wkt.csv', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t.to_csv('/tmp/csv.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t.to_shp('/tmp/shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+
+You can render your spatial vectors in Jupyter Notebook with the ``draw`` function. ::
+
+    t = GeoTable.load('wkt.csv')
+    t.draw()  # Render the geometries in Jupyter Notebook
