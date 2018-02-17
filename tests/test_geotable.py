@@ -116,8 +116,14 @@ class TestGeoTable(object):
             geotable.to_gdal(target_path, driver_name='x')
 
     def test_draw(self, geotable):
-        colorful_geometry_collection = geotable.draw()
-        assert 'circle' in colorful_geometry_collection.svg()
+        svg = geotable.draw().svg()
+        assert 'circle' in svg
+
+        t = GeoTable.load(join(FOLDER, 'csv', 'wkt.csv'))
+        svg = t.draw().svg()
+        assert 'circle' in svg
+        assert 'polyline' in svg
+        assert 'path' in svg
 
     def test_constructor_sliced(self, geotable):
         georow = geotable.iloc[0]
@@ -136,8 +142,8 @@ class TestGeoRow(object):
         assert type(georow.to_frame()) == GeoTable
 
     def test_draw(self, georow):
-        geometry = georow.draw()
-        assert 'circle' in geometry.svg()
+        svg = georow.draw().svg()
+        assert 'circle' in svg
 
 
 class TestColorfulGeometryCollection(object):
