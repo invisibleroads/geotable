@@ -107,7 +107,7 @@ Use the `Spherical Mercator <https://en.wikipedia.org/wiki/Web_Mercator>`_ proje
     t.to_csv('/tmp/csv.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
     t.to_shp('/tmp/shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
 
-You can render your spatial vectors in Jupyter Notebook with the ``draw`` function. ::
+You can render your spatial vectors in Jupyter Notebook with the ``draw`` function. Each geometry layer will appear in a different color. ::
 
     t = GeoTable.load('wkt.csv')
     t.draw()  # Render the geometries in Jupyter Notebook
