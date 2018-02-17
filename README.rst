@@ -100,7 +100,7 @@ Use the `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Univ
     t.to_csv('/tmp/csv.zip', target_proj4=utm_proj4)
     t.to_shp('/tmp/shp.zip', target_proj4=utm_proj4)
 
-Use the `Spherical Mercator <https://en.wikipedia.org/wiki/Web_Mercator>`_ projection when visualization is more important than accuracy. Do not use this projection for algorithms where spatial accuracy is important.
+Use the `Spherical Mercator <https://en.wikipedia.org/wiki/Web_Mercator>`_ projection when visualization is more important than accuracy. Do not use this projection for algorithms where spatial accuracy is important. ::
 
     from geotable.projections import SPHERICAL_MERCATOR_PROJ4
     t = GeoTable.load('wkt.csv', target_proj4=SPHERICAL_MERCATOR_PROJ4)
