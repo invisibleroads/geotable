@@ -60,9 +60,13 @@ class GeoTable(pd.DataFrame):
                     source_folder, source_proj4, target_proj4)
             except GeoTableError:
                 pass
-            return pd.concat(Class.from_csv(
-                x, source_proj4, target_proj4, **kw,
-            ) for x in find_paths(source_folder, '*.csv'))
+            try:
+                return pd.concat(Class.from_csv(
+                    x, source_proj4, target_proj4, **kw
+                ) for x in find_paths(source_folder, '*.csv'))
+            except (GeoTableError, ValueError):
+                pass
+            raise GeoTableError('spatial vectors not found (%s)' % source_path)
 
     @classmethod
     def from_shp(Class, source_path, source_proj4=None, target_proj4=None):
