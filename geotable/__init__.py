@@ -56,8 +56,9 @@ class GeoTable(pd.DataFrame):
                 raise GeoTableError(
                     'file format not supported (%s)' % source_path)
             try:
-                return Class.from_shp(
-                    source_folder, source_proj4, target_proj4)
+                return pd.concat(Class.from_shp(
+                    x, source_proj4, target_proj4
+                ) for x in find_paths(source_folder, '*.shp'))
             except GeoTableError:
                 pass
             try:

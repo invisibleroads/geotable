@@ -16,7 +16,7 @@ DESCRIPTION = '\n\n'.join(open(join(FOLDER, x)).read().strip() for x in [
     'README.rst', 'CHANGES.rst'])
 setup(
     name='geotable',
-    version='0.3.3',
+    version='0.3.3.1',
     description='Read and write spatial vectors',
     long_description=DESCRIPTION,
     classifiers=[
