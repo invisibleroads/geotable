@@ -13,16 +13,15 @@ from shapely.geometry import GeometryCollection
 
 from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
-    _get_field_definitions,
     _get_geometry_columns,
     _get_instance_for_csv,
     _get_instance_from_gdal_layer,
     _get_load_geometry_object,
     _get_proj4_from_gdal_layer,
     _get_proj4_from_path,
+    _prepare_gdal_layer,
     _has_one_proj4)
 from .projections import (
-    _get_spatial_reference_from_proj4,
     _get_transform_gdal_geometry,
     get_transform_shapely_geometry,
     get_utm_proj4,
@@ -32,19 +31,6 @@ from .projections import (
 
 
 class GeoTable(pd.DataFrame):
-
-    def __init__(self, *args, **kw):
-        super(GeoTable, self).__init__(*args, **kw)
-        if 'geometry_object' in self.index:
-            self._data = self.T._data
-        if 'geometry_proj4' not in self:
-            self['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
-        if 'geometry_layer' not in self:
-            self['geometry_layer'] = ''
-        if 'geometry_object' not in self:
-            geometry_columns = _get_geometry_columns(self)
-            load_geometry_object = _get_load_geometry_object(geometry_columns)
-            self['geometry_object'] = self.apply(load_geometry_object, axis=1)
 
     @classmethod
     def load_utm_proj4(Class, source_path):
@@ -81,6 +67,19 @@ class GeoTable(pd.DataFrame):
             except (GeoTableError, ValueError):
                 pass
             raise GeoTableError('spatial vectors not found (%s)' % source_path)
+
+    @classmethod
+    def from_records(Class, *args, **kw):
+        t = super(GeoTable, Class).from_records(*args, **kw)
+        if 'geometry_proj4' not in t:
+            t['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
+        if 'geometry_layer' not in t:
+            t['geometry_layer'] = ''
+        if 'geometry_object' not in t:
+            geometry_columns = _get_geometry_columns(t)
+            load_geometry_object = _get_load_geometry_object(geometry_columns)
+            t['geometry_object'] = t.apply(load_geometry_object, axis=1)
+        return t
 
     @classmethod
     def from_shp(Class, source_path, source_proj4=None, target_proj4=None):
@@ -184,25 +183,8 @@ class GeoTable(pd.DataFrame):
         with TemporaryStorage() as storage:
             gdal_dataset = gdal_driver.Create(storage.folder, 0, 0)
             for layer_name, layer_t in self.groupby('geometry_layer'):
-                layer_t = layer_t.dropna(axis=1, how='all')
-                field_names = layer_t.field_names
-                field_definitions = _get_field_definitions(layer_t)
-                layer_proj4 = target_proj4 or layer_t.iloc[0]['geometry_proj4']
-                gdal_layer = gdal_dataset.CreateLayer(
-                    layer_name, _get_spatial_reference_from_proj4(layer_proj4))
-                for field_definition in field_definitions:
-                    gdal_layer.CreateField(field_definition)
-                layer_definition = gdal_layer.GetLayerDefn()
-                for source_proj4, proj4_t in layer_t.groupby('geometry_proj4'):
-                    f = get_transform_shapely_geometry(
-                        source_proj4, layer_proj4)
-                    for index, row in proj4_t.iterrows():
-                        ogr_feature = ogr.Feature(layer_definition)
-                        for field_index, field_name in enumerate(field_names):
-                            ogr_feature.SetField2(field_index, row[field_name])
-                        ogr_feature.SetGeometry(ogr.CreateGeometryFromWkb(
-                            f(row['geometry_object']).wkb))
-                        gdal_layer.CreateFeature(ogr_feature)
+                _prepare_gdal_layer(
+                    layer_t, gdal_dataset, target_proj4, layer_name)
             gdal_dataset.FlushCache()
             compress(storage.folder, target_path)
 

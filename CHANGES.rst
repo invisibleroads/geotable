@@ -1,9 +1,9 @@
 0.3
 ---
+- Add GeoTable.from_records
 - Add GeoTable.save_csv
 - Add GeoTable.save_shp
 - Reduce CSV size by omitting geometry_layer and geometry_proj4 unless needed
-- Support constructing GeoTable from DataFrame with geometry columns
 - Support SOPHISTICATED_LONGITUDE and INSPIRING_LATITUDE
 
 0.2

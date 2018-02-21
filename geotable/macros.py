@@ -1,3 +1,4 @@
+import numpy as np
 from collections import OrderedDict
 from datetime import datetime
 from invisibleroads_macros.disk import replace_file_extension
@@ -6,13 +7,15 @@ from invisibleroads_macros.log import get_log
 from invisibleroads_macros.text import unicode_safely
 from os.path import exists
 from osgeo import ogr
-from shapely import wkb, wkt
-from shapely.geometry import Point
+from shapely import geometry, wkb, wkt
 from shapely.errors import WKTReadingError
 
 from .exceptions import GeoTableError
 from .projections import (
-    get_transform_shapely_geometry, normalize_proj4, LONGITUDE_LATITUDE_PROJ4)
+    _get_spatial_reference_from_proj4,
+    get_transform_shapely_geometry,
+    normalize_proj4,
+    LONGITUDE_LATITUDE_PROJ4)
 
 
 L = get_log(__file__)
@@ -153,7 +156,7 @@ def _get_proj4_from_path(source_path, default_proj4):
 
 def _get_load_geometry_object(geometry_columns):
     if len(geometry_columns) == 2:
-        return lambda row: Point(*list(row[geometry_columns]))
+        return lambda row: geometry.Point(*list(row[geometry_columns]))
 
     def load_geometry_object(row):
         [geometry_wkt] = row[geometry_columns]
@@ -199,8 +202,45 @@ def _normalize_column_name(x):
     return str(x).lower().replace('_', '')
 
 
+def _prepare_gdal_layer(t, gdal_dataset, target_proj4, layer_name):
+    # Drop columns that have no values
+    t = t.dropna(axis=1, how='all').copy()
+    # Coerce objects into strings to prevent errors
+    for field_name in t.field_names:
+        column = t[field_name]
+        if column.dtype.name == 'object':
+            t[field_name] = column.fillna('').astype(str)
+    # Create layer
+    layer_proj4 = target_proj4 or t.iloc[0]['geometry_proj4']
+    gdal_layer = gdal_dataset.CreateLayer(
+        layer_name, _get_spatial_reference_from_proj4(layer_proj4))
+    for field_definition in _get_field_definitions(t):
+        gdal_layer.CreateField(field_definition)
+    layer_definition = gdal_layer.GetLayerDefn()
+    # Add features
+    for source_proj4, proj4_t in t.groupby('geometry_proj4'):
+        f = get_transform_shapely_geometry(source_proj4, layer_proj4)
+        for index, row in proj4_t.iterrows():
+            ogr_feature = ogr.Feature(layer_definition)
+            for field_index, field_name in enumerate(t.field_names):
+                ogr_feature.SetField2(field_index, row[field_name])
+            ogr_feature.SetGeometry(ogr.CreateGeometryFromWkb(
+                f(row['geometry_object']).wkb))
+            try:
+                gdal_layer.CreateFeature(ogr_feature)
+            except RuntimeError:
+                raise GeoTableError(
+                    'mutually incompatible geometry types '
+                    'must be in separate layers')
+    return gdal_layer
+
+
 def _transform_field_value(field_value, field_type):
-    if field_type in (ogr.OFTString, ogr.OFTWideString):
+    if field_type in (ogr.OFTInteger, ogr.OFTInteger64):
+        field_value = int(field_value)
+    elif field_type in (ogr.OFTIntegerList, ogr.OFTInteger64List):
+        field_value = [int(x) for x in field_value]
+    elif field_type in (ogr.OFTString, ogr.OFTWideString):
         field_value = unicode_safely(field_value)
     elif field_type in (ogr.OFTStringList, ogr.OFTWideStringList):
         field_value = [unicode_safely(x) for x in field_value]
@@ -208,7 +248,7 @@ def _transform_field_value(field_value, field_type):
         try:
             field_value = datetime(*map(int, field_value))
         except ValueError:
-            pass
+            field_value = np.nan
     return field_value
 
 

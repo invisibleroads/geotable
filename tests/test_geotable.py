@@ -1,3 +1,4 @@
+import pandas as pd
 from geotable import ColorfulGeometryCollection, GeoRow, GeoTable
 from geotable.exceptions import EmptyGeoTableError, GeoTableError
 from geotable.projections import (
@@ -14,15 +15,6 @@ UTM_PROJ4 = '+proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 
 
 class TestGeoTable(object):
-
-    def test_init(self):
-        geometry = Point(0, 0)
-
-        t = GeoTable([(0, 0)], columns=['longitude', 'latitude'])
-        assert t.iloc[0]['geometry_object'] == geometry
-
-        t = GeoTable([(geometry.wkt,)], columns=['wkt'])
-        assert t.iloc[0]['geometry_object'] == geometry
 
     def test_load_utm_proj4(self):
         assert GeoTable.load_utm_proj4(join(FOLDER, 'shp.zip')) == UTM_PROJ4
@@ -58,6 +50,15 @@ class TestGeoTable(object):
             GeoTable.load(x_path)
         with raises(GeoTableError):
             GeoTable.load(archive_path)
+
+    def test_from_records(self):
+        geometry = Point(0, 0)
+
+        t = GeoTable.from_records([(0, 0)], columns=['lon', 'lat'])
+        assert t.iloc[0]['geometry_object'] == geometry
+
+        t = GeoTable.from_records([(geometry.wkt,)], columns=['wkt'])
+        assert t.iloc[0]['geometry_object'] == geometry
 
     def test_from_shp(self):
         with raises(GeoTableError):
@@ -115,6 +116,13 @@ class TestGeoTable(object):
         assert t['category'].dtype.name == 'object'
         assert t['object_dt'].dtype.name == 'object'
         assert t['object_st'].dtype.name == 'object'
+
+        t = GeoTable.from_records(pd.DataFrame([
+            ('POINT (0 0)',),
+            ('LINESTRING (0 0, 1 1)',),
+        ], columns=['wkt']))
+        with raises(GeoTableError):
+            t.save_shp(target_path)
 
     def test_save_csv(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.csv'))

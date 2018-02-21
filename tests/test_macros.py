@@ -33,8 +33,10 @@ def test_get_geometry_columns():
     t = pd.DataFrame([(0, 0)], columns=['Longitude', 'Latitude'])
     assert _get_geometry_columns(t) == ['Longitude', 'Latitude']
 
-    t = pd.DataFrame([(0, 0)], columns=['IncredibleLongitude', 'IncredibleLatitude'])
-    assert _get_geometry_columns(t) == ['IncredibleLongitude', 'IncredibleLatitude']
+    t = pd.DataFrame([(0, 0)], columns=[
+        'IncredibleLongitude', 'IncredibleLatitude'])
+    assert _get_geometry_columns(t) == [
+        'IncredibleLongitude', 'IncredibleLatitude']
 
     t = pd.DataFrame([(0, 0)], columns=['LON', 'LAT'])
     assert _get_geometry_columns(t) == ['LON', 'LAT']
@@ -95,4 +97,4 @@ def test_has_one_proj4():
 
 
 def test_transform_field_value():
-    assert _transform_field_value('x', ogr.OFTDate) == 'x'
+    assert pd.isnull(_transform_field_value('x', ogr.OFTDate))

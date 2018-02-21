@@ -43,7 +43,7 @@ def prepare_feature(name_type_value_packs):
 
 FOLDER = dirname(__file__)
 TIMEZONE = timezone(timedelta(hours=1))
-GEOTABLE = GeoTable(pd.DataFrame([{
+GEOTABLE = GeoTable.from_records(pd.DataFrame([{
     'float16': 0.1,
     'float32': 0.1,
     'float64': 0.1,
@@ -58,6 +58,7 @@ GEOTABLE = GeoTable(pd.DataFrame([{
     'timedelta': datetime(2000, 1, 1, 1, 0) - datetime(2000, 1, 1, 0, 0),
     'category': 'vegetable',
     'object_dt': date(2000, 1, 1),
+    'object_lt': [0, np.finfo('float').eps],
     'object_st': 'whee',
     'geometry_object': Point(0, 0),
     'geometry_layer': 'layer_name',
