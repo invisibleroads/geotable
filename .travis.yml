@@ -7,7 +7,7 @@ python:
   - 3.4
   - 3.5
 before_install:
-  - sudo apt-get install python-python3-gdal
+  - sudo apt-get install python-gdal python3-gdal
 install:
   - pip install -e .
 script: py.test
