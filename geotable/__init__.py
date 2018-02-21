@@ -12,7 +12,6 @@ from osgeo import gdal, ogr, osr
 from shapely.geometry import GeometryCollection
 
 from .exceptions import EmptyGeoTableError, GeoTableError
-from .fallbacks import EmptyDataError
 from .macros import (
     _get_field_definitions,
     _get_geometry_columns,
@@ -105,7 +104,7 @@ class GeoTable(pd.DataFrame):
             Class, source_path, source_proj4=None, target_proj4=None, **kw):
         try:
             t = load_csv_safely(source_path, **kw)
-        except EmptyDataError:
+        except pd.errors.EmptyDataError:
             raise EmptyGeoTableError('file empty (%s)' % source_path)
         try:
             geometry_columns = _get_geometry_columns(t)

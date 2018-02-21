@@ -7,7 +7,7 @@ ENTRY_POINTS = """
 REQUIREMENTS = [
     # 'gdal',
     'invisibleroads_macros',
-    'pandas',
+    'pandas>=0.20',
     'shapely[vectorized]',
     'utm',
 ]

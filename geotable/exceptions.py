@@ -1,11 +1,11 @@
-from .fallbacks import EmptyDataError
+import pandas as pd
 
 
 class GeoTableError(Exception):
     pass
 
 
-class EmptyGeoTableError(EmptyDataError, GeoTableError):
+class EmptyGeoTableError(pd.errors.EmptyDataError, GeoTableError):
     pass
 
 
