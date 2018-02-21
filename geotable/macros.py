@@ -196,7 +196,7 @@ def _has_one_proj4(t):
 
 
 def _normalize_column_name(x):
-    return x.lower().replace('_', '')
+    return str(x).lower().replace('_', '')
 
 
 def _transform_field_value(field_value, field_type):

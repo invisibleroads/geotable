@@ -1,7 +1,9 @@
 from geotable import ColorfulGeometryCollection, GeoRow, GeoTable
 from geotable.exceptions import EmptyGeoTableError, GeoTableError
-from geotable.projections import normalize_proj4, LONGITUDE_LATITUDE_PROJ4
-from os.path import join
+from geotable.projections import (
+    normalize_proj4, LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
+from invisibleroads_macros.disk import compress_zip, replace_file_extension
+from os.path import exists, join
 from pytest import raises
 from shapely.geometry import Point, LineString, Polygon
 
@@ -13,10 +15,19 @@ UTM_PROJ4 = '+proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 
 class TestGeoTable(object):
 
+    def test_init(self):
+        geometry = Point(0, 0)
+
+        t = GeoTable([(0, 0)], columns=['longitude', 'latitude'])
+        assert t.iloc[0]['geometry_object'] == geometry
+
+        t = GeoTable([(geometry.wkt,)], columns=['wkt'])
+        assert t.iloc[0]['geometry_object'] == geometry
+
     def test_load_utm_proj4(self):
         assert GeoTable.load_utm_proj4(join(FOLDER, 'shp.zip')) == UTM_PROJ4
 
-    def test_load(self):
+    def test_load(self, tmpdir):
         t = GeoTable.load(join(FOLDER, 'shp', 'a.shp'))
         assert t['date'].dtype.name == 'datetime64[ns]'
 
@@ -36,11 +47,17 @@ class TestGeoTable(object):
         assert t['date'].dtype.name == 'datetime64[ns]'
         assert t.iloc[0]['geometry_object'].type == 'Point'
 
-        with raises(GeoTableError):
-            GeoTable.load(join(FOLDER, 'conftest.py'))
-
         t = GeoTable.load(join(FOLDER, 'csv.zip'), parse_dates=['date'])
         assert t['date'].dtype.name == 'datetime64[ns]'
+
+        x_path_object = tmpdir.join('x.txt')
+        x_path_object.write('x')
+        x_path = str(x_path_object)
+        archive_path = compress_zip(str(tmpdir))
+        with raises(GeoTableError):
+            GeoTable.load(x_path)
+        with raises(GeoTableError):
+            GeoTable.load(archive_path)
 
     def test_from_shp(self):
         with raises(GeoTableError):
@@ -74,13 +91,13 @@ class TestGeoTable(object):
         assert t.iloc[0]['geometry_proj4'] == normalize_proj4(open(join(
             FOLDER, 'csv', 'proj4_from_file.proj4')).read())
 
-    def test_to_shp(self, geotable, tmpdir):
+    def test_save_shp(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.shp'))
         with raises(GeoTableError):
-            geotable.to_shp(target_path)
+            geotable.save_shp(target_path)
 
         target_path = str(tmpdir.join('x.zip'))
-        geotable.to_shp(target_path)
+        geotable.save_shp(target_path)
 
         t = GeoTable.load(target_path)
         assert t['float16'].dtype.name == 'float64'
@@ -99,14 +116,18 @@ class TestGeoTable(object):
         assert t['object_dt'].dtype.name == 'object'
         assert t['object_st'].dtype.name == 'object'
 
-    def test_to_csv(self, geotable, tmpdir):
+    def test_save_csv(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.csv'))
-        geotable.to_csv(target_path)
+        geotable.save_csv(target_path)
         t = GeoTable.load(target_path)
+        proj4_path = replace_file_extension(target_path, '.proj4')
         assert t['bool'].dtype.name == 'bool'
+        assert not exists(proj4_path)
+        geotable.save_csv(target_path, target_proj4=SPHERICAL_MERCATOR_PROJ4)
+        assert open(proj4_path).read() == SPHERICAL_MERCATOR_PROJ4
 
         target_path = str(tmpdir.join('x.zip'))
-        geotable.to_csv(target_path)
+        geotable.save_csv(target_path)
         t = GeoTable.load(target_path)
         assert t['int64'].dtype.name == 'int64'
 

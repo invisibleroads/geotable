@@ -2,7 +2,7 @@ import pandas as pd
 import utm
 from invisibleroads_macros.disk import (
     TemporaryStorage, compress, find_paths, get_file_stem,
-    has_archive_extension, move_path, uncompress)
+    has_archive_extension, move_path, replace_file_extension, uncompress)
 from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.html import make_random_color
 from invisibleroads_macros.table import load_csv_safely
@@ -25,12 +25,26 @@ from .projections import (
     _get_spatial_reference_from_proj4,
     _get_transform_gdal_geometry,
     get_transform_shapely_geometry,
-    get_utm_proj4, normalize_proj4,
+    get_utm_proj4,
+    normalize_proj4,
     LONGITUDE_LATITUDE_PROJ4,
     SPHERICAL_MERCATOR_PROJ4)
 
 
 class GeoTable(pd.DataFrame):
+
+    def __init__(self, *args, **kw):
+        super(GeoTable, self).__init__(*args, **kw)
+        if 'geometry_object' in self.index:
+            self._data = self.T._data
+        if 'geometry_proj4' not in self:
+            self['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
+        if 'geometry_layer' not in self:
+            self['geometry_layer'] = ''
+        if 'geometry_object' not in self:
+            geometry_columns = _get_geometry_columns(self)
+            load_geometry_object = _get_load_geometry_object(geometry_columns)
+            self['geometry_object'] = self.apply(load_geometry_object, axis=1)
 
     @classmethod
     def load_utm_proj4(Class, source_path):
@@ -118,16 +132,38 @@ class GeoTable(pd.DataFrame):
         t['geometry_object'] = geometry_objects
         return Class(t.drop(geometry_columns, axis=1))
 
+    def save_shp(self, target_path, target_proj4=None):
+        self.to_shp(target_path, target_proj4)
+        return target_path
+
+    def save_csv(self, target_path, target_proj4=None, **kw):
+        if 'index' not in kw:
+            kw['index'] = False
+        self.to_csv(target_path, target_proj4, **kw)
+        return target_path
+
     def to_shp(self, target_path, target_proj4=None):
         return self.to_gdal(
             target_path, target_proj4, driver_name='ESRI Shapefile')
 
     def to_csv(self, target_path, target_proj4=None, **kw):
-        if 'index' not in kw:
-            kw['index'] = False
         t = pd.concat(_get_instance_for_csv(
             x, source_proj4 or LONGITUDE_LATITUDE_PROJ4, target_proj4,
         ) for source_proj4, x in self.groupby('geometry_proj4'))
+
+        excluded_column_names = []
+        unique_geometry_layers = t['geometry_layer'].unique()
+        unique_geometry_proj4s = t['geometry_proj4'].unique()
+        if len(unique_geometry_layers) == 1:
+            excluded_column_names.append('geometry_layer')
+        if len(unique_geometry_proj4s) == 1:
+            excluded_column_names.append('geometry_proj4')
+            geometry_proj4 = unique_geometry_proj4s[0]
+            if geometry_proj4 != LONGITUDE_LATITUDE_PROJ4:
+                open(replace_file_extension(
+                    target_path, '.proj4'), 'wt').write(geometry_proj4)
+        t = t.drop(excluded_column_names, axis=1)
+
         with TemporaryStorage() as storage:
             temporary_path = join(storage.folder, 'geotable.csv')
             super(GeoTable, t).to_csv(temporary_path, **kw)

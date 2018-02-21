@@ -76,5 +76,4 @@ GEOTABLE = GeoTable(pd.DataFrame([{
 }))
 GEOROW = GeoRow({
     'geometry_object': Point(-71.10973349999999, 42.3736158),
-    'geometry_proj4': LONGITUDE_LATITUDE_PROJ4,
-})
+    'geometry_proj4': LONGITUDE_LATITUDE_PROJ4})
