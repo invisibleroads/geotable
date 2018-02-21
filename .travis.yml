@@ -3,7 +3,6 @@ virtualenv:
   system_site_packages: true
 python:
   - 3.4
-  - 3.6
 before_install:
   - sudo apt-get install python3-gdal python3-pandas
 install:

@@ -9,6 +9,7 @@ from invisibleroads_macros.table import load_csv_safely
 from invisibleroads_macros.text import unicode_safely
 from os.path import join
 from osgeo import gdal, ogr, osr
+from pandas.errors import EmptyDataError
 from shapely.geometry import GeometryCollection
 
 from .exceptions import EmptyGeoTableError, GeoTableError
@@ -104,7 +105,7 @@ class GeoTable(pd.DataFrame):
             Class, source_path, source_proj4=None, target_proj4=None, **kw):
         try:
             t = load_csv_safely(source_path, **kw)
-        except pd.errors.EmptyDataError:
+        except EmptyDataError:
             raise EmptyGeoTableError('file empty (%s)' % source_path)
         try:
             geometry_columns = _get_geometry_columns(t)
@@ -276,3 +277,9 @@ gdal.SetConfigOption('GDAL_NUM_THREADS', 'ALL_CPUS')
 gdal.UseExceptions()
 ogr.UseExceptions()
 osr.UseExceptions()
+__all__ = [
+    'GeoTable',
+    'GeoRow',
+    'GeoTableError',
+    'EmptyGeoTableError',
+    'LONGITUDE_LATITUDE_PROJ4']
