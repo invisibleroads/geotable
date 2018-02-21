@@ -2,12 +2,10 @@ language: python
 virtualenv:
   system_site_packages: true
 python:
-  - 2.6
-  - 2.7
   - 3.4
-  - 3.5
+  - 3.6
 before_install:
-  - sudo apt-get install python-gdal python3-gdal
+  - sudo apt-get install python3-gdal python3-pandas
 install:
   - pip install -e .
 script: py.test
