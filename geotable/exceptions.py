@@ -1,4 +1,4 @@
-from pandas.errors import EmptyDataError
+from .fallbacks import EmptyDataError
 
 
 class GeoTableError(Exception):

@@ -9,10 +9,10 @@ from invisibleroads_macros.table import load_csv_safely
 from invisibleroads_macros.text import unicode_safely
 from os.path import join
 from osgeo import gdal, ogr, osr
-from pandas.errors import EmptyDataError
 from shapely.geometry import GeometryCollection
 
 from .exceptions import EmptyGeoTableError, GeoTableError
+from .fallbacks import EmptyDataError
 from .macros import (
     _get_field_definitions,
     _get_geometry_columns,
