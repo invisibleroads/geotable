@@ -59,7 +59,7 @@ class GeoTable(pd.DataFrame):
                 return pd.concat(Class.from_shp(
                     x, source_proj4, target_proj4
                 ) for x in find_paths(source_folder, '*.shp'))
-            except GeoTableError:
+            except (GeoTableError, ValueError):
                 pass
             try:
                 return pd.concat(Class.from_csv(
@@ -181,11 +181,13 @@ class GeoTable(pd.DataFrame):
         if not has_archive_extension(target_path):
             raise GeoTableError(
                 'archive extension expected (%s)' % (target_path))
+        target_stem = get_file_stem(target_path)
         with TemporaryStorage() as storage:
             gdal_dataset = gdal_driver.Create(storage.folder, 0, 0)
             for layer_name, layer_t in self.groupby('geometry_layer'):
                 _prepare_gdal_layer(
-                    layer_t, gdal_dataset, target_proj4, layer_name)
+                    layer_t, gdal_dataset, target_proj4,
+                    layer_name or target_stem)
             gdal_dataset.FlushCache()
             compress(storage.folder, target_path)
 
