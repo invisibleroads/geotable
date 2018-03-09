@@ -212,7 +212,10 @@ class GeoTable(pd.DataFrame):
 
     @property
     def geometries(self):
-        return list(self['geometry_object'])
+        try:
+            return list(self['geometry_object'])
+        except KeyError:
+            return []
 
     @property
     def _constructor(self):
