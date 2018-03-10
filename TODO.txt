@@ -2,3 +2,5 @@ Add ability to save field as integer list for shapefile
 Consider letting people assign to t.geometries
 Integrate kdtree for point tables
 Consider compacting proj4 into a single property instead of a column
+Consider defining PointGeoTable
+Consider defining LineGeoTable

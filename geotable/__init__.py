@@ -1,5 +1,6 @@
 import pandas as pd
 import utm
+from functools import partial
 from invisibleroads_macros.disk import (
     TemporaryStorage, compress, find_paths, get_file_stem,
     has_archive_extension, move_path, replace_file_extension, uncompress)
@@ -56,13 +57,13 @@ class GeoTable(pd.DataFrame):
                 raise GeoTableError(
                     'file format not supported (%s)' % source_path)
             try:
-                return pd.concat(Class.from_shp(
+                return concatenate_tables(Class.from_shp(
                     x, source_proj4, target_proj4
                 ) for x in find_paths(source_folder, '*.shp'))
             except (GeoTableError, ValueError):
                 pass
             try:
-                return pd.concat(Class.from_csv(
+                return concatenate_tables(Class.from_csv(
                     x, source_proj4, target_proj4, **kw
                 ) for x in find_paths(source_folder, '*.csv'))
             except (GeoTableError, ValueError):
@@ -97,7 +98,7 @@ class GeoTable(pd.DataFrame):
             t['geometry_layer'] = unicode_safely(gdal_layer.GetName())
             t['geometry_proj4'] = normalize_proj4(target_proj4 or row_proj4)
             instances.append(t)
-        return pd.concat(instances)
+        return concatenate_tables(instances)
 
     @classmethod
     def from_csv(
@@ -113,7 +114,8 @@ class GeoTable(pd.DataFrame):
         load_geometry_object = _get_load_geometry_object(geometry_columns)
         source_proj4 = _get_proj4_from_path(source_path, source_proj4)
         geometry_objects = []
-        t['geometry_layer'] = unicode_safely(get_file_stem(source_path))
+        if 'geometry_layer' not in t:
+            t['geometry_layer'] = unicode_safely(get_file_stem(source_path))
         if _has_one_proj4(t):
             row_proj4 = t.iloc[0].get('geometry_proj4', source_proj4)
             f = get_transform_shapely_geometry(row_proj4, target_proj4)
@@ -147,7 +149,7 @@ class GeoTable(pd.DataFrame):
             target_path, target_proj4, driver_name='ESRI Shapefile')
 
     def to_csv(self, target_path, target_proj4=None, **kw):
-        t = pd.concat(_get_instance_for_csv(
+        t = concatenate_tables(_get_instance_for_csv(
             x, source_proj4 or LONGITUDE_LATITUDE_PROJ4, target_proj4,
         ) for source_proj4, x in self.groupby('geometry_proj4'))
 
@@ -258,6 +260,9 @@ class ColorfulGeometryCollection(GeometryCollection):
             return '<g />'
         return '<g>%s</g>' % ''.join(p.svg(scale_factor, c) for p, c in zip(
             self, self.colors))
+
+
+concatenate_tables = partial(pd.concat, ignore_index=True)
 
 
 gdal.SetConfigOption('GDAL_NUM_THREADS', 'ALL_CPUS')
