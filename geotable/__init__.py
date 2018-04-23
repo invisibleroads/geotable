@@ -33,6 +33,27 @@ from .projections import (
 
 class GeoTable(pd.DataFrame):
 
+    def __init__(self, *args, **kw):
+        super(GeoTable, self).__init__(*args, **kw)
+        self._standardize(self)
+
+    @staticmethod
+    def _standardize(t):
+        if 'geometry_object' in t.index:
+            t = t.transpose()
+        if 'geometry_proj4' not in t:
+            t['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
+        if 'geometry_layer' not in t:
+            t['geometry_layer'] = ''
+        if 'geometry_object' not in t:
+            if not len(t):
+                t['geometry_object'] = ''
+            else:
+                geometry_columns = _get_geometry_columns(t)
+                load_geometry_object = _get_load_geometry_object(
+                    geometry_columns)
+                t['geometry_object'] = t.apply(load_geometry_object, axis=1)
+
     @classmethod
     def load_utm_proj4(Class, source_path):
         geotable = Class.load(
@@ -68,19 +89,12 @@ class GeoTable(pd.DataFrame):
                 ) for x in find_paths(source_folder, '*.csv'))
             except (GeoTableError, ValueError):
                 pass
-            raise GeoTableError('spatial vectors not found (%s)' % source_path)
+        return Class()
 
     @classmethod
     def from_records(Class, *args, **kw):
         t = super(GeoTable, Class).from_records(*args, **kw)
-        if 'geometry_proj4' not in t:
-            t['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
-        if 'geometry_layer' not in t:
-            t['geometry_layer'] = ''
-        if 'geometry_object' not in t:
-            geometry_columns = _get_geometry_columns(t)
-            load_geometry_object = _get_load_geometry_object(geometry_columns)
-            t['geometry_object'] = t.apply(load_geometry_object, axis=1)
+        Class._standardize(t)
         return t
 
     @classmethod
@@ -149,9 +163,12 @@ class GeoTable(pd.DataFrame):
             target_path, target_proj4, driver_name='ESRI Shapefile')
 
     def to_csv(self, target_path, target_proj4=None, **kw):
-        t = concatenate_tables(_get_instance_for_csv(
-            x, source_proj4 or LONGITUDE_LATITUDE_PROJ4, target_proj4,
-        ) for source_proj4, x in self.groupby('geometry_proj4'))
+        try:
+            t = concatenate_tables(_get_instance_for_csv(
+                x, source_proj4 or LONGITUDE_LATITUDE_PROJ4, target_proj4,
+            ) for source_proj4, x in self.groupby('geometry_proj4'))
+        except ValueError:
+            t = self
 
         excluded_column_names = []
         unique_geometry_layers = t['geometry_layer'].unique()
@@ -214,10 +231,7 @@ class GeoTable(pd.DataFrame):
 
     @property
     def geometries(self):
-        try:
-            return list(self['geometry_object'])
-        except KeyError:
-            return []
+        return list(self['geometry_object'])
 
     @property
     def _constructor(self):

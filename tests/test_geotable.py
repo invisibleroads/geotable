@@ -3,7 +3,7 @@ from geotable import ColorfulGeometryCollection, GeoRow, GeoTable
 from geotable.exceptions import EmptyGeoTableError, GeoTableError
 from geotable.projections import (
     normalize_proj4, LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
-from invisibleroads_macros.disk import compress_zip, replace_file_extension
+from invisibleroads_macros.disk import replace_file_extension
 from os.path import exists, join
 from pytest import raises
 from shapely.geometry import Point, LineString, Polygon
@@ -23,16 +23,16 @@ class TestGeoTable(object):
         t = GeoTable.load(join(FOLDER, 'shp', 'a.shp'))
         assert t['date'].dtype.name == 'datetime64[ns]'
 
-        t = GeoTable.load(join(FOLDER, 'csv', 'lat_lon.csv'))
+        t = GeoTable.load(join(FOLDER, 'csv', 'lat-lon.csv'))
         assert t.iloc[0]['geometry_object'].x == -83.7430378
 
-        t = GeoTable.load(join(FOLDER, 'csv', 'latitude_longitude.csv'))
+        t = GeoTable.load(join(FOLDER, 'csv', 'latitude-longitude.csv'))
         assert t.iloc[0]['geometry_object'].x == -91.5305465
 
-        t = GeoTable.load(join(FOLDER, 'csv', 'latitude_longitude_wkt.csv'))
+        t = GeoTable.load(join(FOLDER, 'csv', 'latitude-longitude-wkt.csv'))
         assert t.iloc[0]['geometry_object'].x == -71.10973349999999
 
-        t = GeoTable.load(join(FOLDER, 'csv', 'longitude_latitude_wkt.csv'))
+        t = GeoTable.load(join(FOLDER, 'csv', 'longitude-latitude-wkt.csv'))
         assert t.iloc[0]['geometry_object'].x == -71.10973349999999
 
         t = GeoTable.load(join(FOLDER, 'csv', 'wkt.csv'), parse_dates=['date'])
@@ -45,11 +45,8 @@ class TestGeoTable(object):
         x_path_object = tmpdir.join('x.txt')
         x_path_object.write('x')
         x_path = str(x_path_object)
-        archive_path = compress_zip(str(tmpdir))
         with raises(GeoTableError):
             GeoTable.load(x_path)
-        with raises(GeoTableError):
-            GeoTable.load(archive_path)
 
     def test_from_records(self):
         geometry = Point(0, 0)
@@ -59,6 +56,9 @@ class TestGeoTable(object):
 
         t = GeoTable.from_records([(geometry.wkt,)], columns=['wkt'])
         assert t.iloc[0]['geometry_object'] == geometry
+
+        t = GeoTable.from_records(pd.DataFrame())
+        assert 'geometry_object' in t.columns
 
     def test_from_shp(self):
         with raises(GeoTableError):
@@ -83,14 +83,14 @@ class TestGeoTable(object):
             GeoTable.from_csv(str(p))
 
         t = GeoTable.from_csv(
-            join(FOLDER, 'csv', 'proj4_from_row.csv'),
+            join(FOLDER, 'csv', 'proj4-from-row.csv'),
             target_proj4=LONGITUDE_LATITUDE_PROJ4)
         assert type(t.iloc[0]['geometry_object']) == LineString
         assert type(t.iloc[1]['geometry_object']) == Polygon
 
-        t = GeoTable.from_csv(join(FOLDER, 'csv', 'proj4_from_file.csv'))
+        t = GeoTable.from_csv(join(FOLDER, 'csv', 'proj4-from-file.csv'))
         assert t.iloc[0]['geometry_proj4'] == normalize_proj4(open(join(
-            FOLDER, 'csv', 'proj4_from_file.proj4')).read())
+            FOLDER, 'csv', 'proj4-from-file.proj4')).read())
 
     def test_save_shp(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.shp'))
@@ -117,12 +117,16 @@ class TestGeoTable(object):
         assert t['object_dt'].dtype.name == 'object'
         assert t['object_st'].dtype.name == 'object'
 
-        t = GeoTable.from_records(pd.DataFrame([
+        t = GeoTable([
             ('POINT (0 0)',),
             ('LINESTRING (0 0, 1 1)',),
-        ], columns=['wkt']))
+        ], columns=['wkt'])
         with raises(GeoTableError):
             t.save_shp(target_path)
+
+        GeoTable().save_shp(target_path)
+        t = GeoTable.load(target_path)
+        assert len(t) == 0
 
     def test_save_csv(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.csv'))
@@ -138,6 +142,10 @@ class TestGeoTable(object):
         geotable.save_csv(target_path)
         t = GeoTable.load(target_path)
         assert t['int64'].dtype.name == 'int64'
+
+        GeoTable().save_csv(target_path)
+        t = GeoTable.load(target_path)
+        assert len(t) == 0
 
     def test_to_gdal(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.zip'))
