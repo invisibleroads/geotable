@@ -14,6 +14,7 @@ from shapely.geometry import GeometryCollection
 
 from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
+    _ensure_geometry_columns,
     _get_geometry_columns,
     _get_instance_for_csv,
     _get_instance_from_gdal_layer,
@@ -21,7 +22,8 @@ from .macros import (
     _get_proj4_from_gdal_layer,
     _get_proj4_from_path,
     _prepare_gdal_layer,
-    _has_one_proj4)
+    _has_one_proj4,
+    _make_geotable)
 from .projections import (
     _get_transform_gdal_geometry,
     get_transform_shapely_geometry,
@@ -32,27 +34,6 @@ from .projections import (
 
 
 class GeoTable(pd.DataFrame):
-
-    def __init__(self, *args, **kw):
-        super(GeoTable, self).__init__(*args, **kw)
-        self._standardize(self)
-
-    @staticmethod
-    def _standardize(t):
-        if 'geometry_object' in t.index:
-            t = t.transpose()
-        if 'geometry_proj4' not in t:
-            t['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
-        if 'geometry_layer' not in t:
-            t['geometry_layer'] = ''
-        if 'geometry_object' not in t:
-            if not len(t):
-                t['geometry_object'] = ''
-            else:
-                geometry_columns = _get_geometry_columns(t)
-                load_geometry_object = _get_load_geometry_object(
-                    geometry_columns)
-                t['geometry_object'] = t.apply(load_geometry_object, axis=1)
 
     @classmethod
     def load_utm_proj4(Class, source_path):
@@ -94,8 +75,7 @@ class GeoTable(pd.DataFrame):
     @classmethod
     def from_records(Class, *args, **kw):
         t = super(GeoTable, Class).from_records(*args, **kw)
-        Class._standardize(t)
-        return t
+        return _make_geotable(t)
 
     @classmethod
     def from_shp(Class, source_path, source_proj4=None, target_proj4=None):
@@ -162,6 +142,7 @@ class GeoTable(pd.DataFrame):
         return self.to_gdal(
             target_path, target_proj4, driver_name='ESRI Shapefile')
 
+    @_ensure_geometry_columns
     def to_csv(self, target_path, target_proj4=None, **kw):
         try:
             t = concatenate_tables(_get_instance_for_csv(
@@ -191,6 +172,7 @@ class GeoTable(pd.DataFrame):
             else:
                 move_path(target_path, temporary_path)
 
+    @_ensure_geometry_columns
     def to_gdal(
             self, target_path, target_proj4=None,
             driver_name='ESRI Shapefile'):
@@ -210,12 +192,14 @@ class GeoTable(pd.DataFrame):
             gdal_dataset.FlushCache()
             compress(storage.folder, target_path)
 
+    @_ensure_geometry_columns
     def draw(self):
         'Render layers in Jupyter Notebook'
         return ColorfulGeometryCollection([GeometryCollection(
             x.get_geometries(SPHERICAL_MERCATOR_PROJ4)
         ) for _, x in self.groupby('geometry_layer')])
 
+    @_ensure_geometry_columns
     def get_geometries(self, target_proj4=None):
         geometry_by_index = {}
         for source_proj4, proj4_t in self.groupby('geometry_proj4'):
@@ -230,6 +214,7 @@ class GeoTable(pd.DataFrame):
             'geometry_object', 'geometry_layer', 'geometry_proj4']]
 
     @property
+    @_ensure_geometry_columns
     def geometries(self):
         return list(self['geometry_object'])
 

@@ -252,6 +252,31 @@ def _transform_field_value(field_value, field_type):
     return field_value
 
 
+def _ensure_geometry_columns(f):
+
+    def wrap(*args, **kw):
+        _make_geotable(args[0])
+        return f(*args, **kw)
+
+    return wrap
+
+
+def _make_geotable(t):
+    if 'geometry_proj4' not in t:
+        t['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
+    if 'geometry_layer' not in t:
+        t['geometry_layer'] = ''
+    if 'geometry_object' not in t:
+        if not len(t):
+            t['geometry_object'] = ''
+        else:
+            geometry_columns = _get_geometry_columns(t)
+            load_geometry_object = _get_load_geometry_object(
+                geometry_columns)
+            t['geometry_object'] = t.apply(load_geometry_object, axis=1)
+    return t
+
+
 METHOD_NAME_BY_TYPE = {
     ogr.OFTBinary: 'GetFieldAsBinary',
     ogr.OFTDate: 'GetFieldAsDateTime',
