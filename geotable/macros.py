@@ -264,8 +264,11 @@ def _ensure_geometry_columns(f):
 def _make_geotable(t):
     if 'geometry_proj4' not in t:
         t['geometry_proj4'] = LONGITUDE_LATITUDE_PROJ4
+
     if 'geometry_layer' not in t:
         t['geometry_layer'] = ''
+    t['geometry_layer'].fillna('', inplace=True)
+
     if 'geometry_object' not in t:
         if not len(t):
             t['geometry_object'] = ''
@@ -274,6 +277,7 @@ def _make_geotable(t):
             load_geometry_object = _get_load_geometry_object(
                 geometry_columns)
             t['geometry_object'] = t.apply(load_geometry_object, axis=1)
+
     return t
 
 
