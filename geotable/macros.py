@@ -267,7 +267,6 @@ def _make_geotable(t):
 
     if 'geometry_layer' not in t:
         t['geometry_layer'] = ''
-    t['geometry_layer'].fillna('', inplace=True)
 
     if 'geometry_object' not in t:
         if not len(t):
