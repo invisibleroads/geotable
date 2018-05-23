@@ -1,7 +1,8 @@
+import inspect
 import numpy as np
 from collections import OrderedDict
 from datetime import datetime
-from invisibleroads_macros.disk import replace_file_extension
+from invisibleroads_macros.disk import get_file_stem, replace_file_extension
 from invisibleroads_macros.geometry import flip_xy, transform_geometries
 from invisibleroads_macros.log import get_log
 from invisibleroads_macros.text import unicode_safely
@@ -256,6 +257,15 @@ def _ensure_geometry_columns(f):
 
     def wrap(*args, **kw):
         _make_geotable(args[0])
+        arguments = inspect.signature(f).bind(*args, **kw).arguments
+        try:
+            self = arguments['self']
+            target_path = arguments['target_path']
+        except KeyError:
+            pass
+        else:
+            target_stem = get_file_stem(target_path)
+            self['geometry_layer'].replace('', target_stem, inplace=True)
         return f(*args, **kw)
 
     return wrap
