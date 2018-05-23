@@ -264,7 +264,7 @@ def _ensure_geometry_columns(f):
         except KeyError:
             pass
         else:
-            target_stem = get_file_stem(target_path)
+            target_stem = unicode_safely(get_file_stem(target_path))
             self['geometry_layer'].replace('', target_stem, inplace=True)
         return f(*args, **kw)
 
