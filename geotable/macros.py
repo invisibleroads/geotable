@@ -9,7 +9,7 @@ from invisibleroads_macros.text import unicode_safely
 from os.path import exists
 from osgeo import ogr
 from shapely import geometry, wkb, wkt
-from shapely.errors import WKTReadingError
+from shapely.errors import WKBReadingError, WKTReadingError
 
 from .exceptions import GeoTableError
 from .projections import (
@@ -138,10 +138,15 @@ def _get_instance_from_gdal_layer(Class, gdal_layer, transform_gdal_geometry):
     for feature_index in range(gdal_layer.GetFeatureCount()):
         feature = gdal_layer.GetFeature(feature_index)
         if not feature:
-            raise GeoTableError('feature unreadable')
+            L.warning('feature unreadable (index=%s)' % feature_index)
+            continue
         gdal_geometry = feature.GetGeometryRef()
-        shapely_geometry = wkb.loads(transform_gdal_geometry(
-            gdal_geometry).ExportToWkb()) if gdal_geometry else None
+        try:
+            shapely_geometry = wkb.loads(transform_gdal_geometry(
+                gdal_geometry).ExportToWkb()) if gdal_geometry else None
+        except WKBReadingError:
+            L.warning('feature unloadable (index=%s)' % feature_index)
+            continue
         field_values = get_field_values(feature)
         rows.append(field_values + (shapely_geometry,))
     field_names = tuple(field_type_by_name.keys())
