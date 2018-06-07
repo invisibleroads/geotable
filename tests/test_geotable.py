@@ -60,10 +60,10 @@ class TestGeoTable(object):
         t = GeoTable.from_records(pd.DataFrame())
         assert 'geometry_object' in t.columns
 
-    def test_from_shp(self):
+    def test_from_gdal(self):
         with raises(GeoTableError):
-            GeoTable.from_shp(join(FOLDER, 'conftest.py'))
-        t = GeoTable.from_shp(join(
+            GeoTable.from_gdal(join(FOLDER, 'conftest.py'))
+        t = GeoTable.from_gdal(join(
             FOLDER, 'shp', 'b.shp'), target_proj4=UTM_PROJ4)
         assert t.iloc[0]['geometry_object'].x == -638500.4251527891
 

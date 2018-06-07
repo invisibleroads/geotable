@@ -87,9 +87,9 @@ def test_get_instance_from_gdal_layer(mocker):
     mock_gdal_layer.GetFeatureCount.return_value = 1
     mock_gdal_layer.GetFeature.return_value = None
     mock_transform_gdal_geometry = MagicMock()
-    with raises(GeoTableError):
-        _get_instance_from_gdal_layer(
-            mock_class, mock_gdal_layer, mock_transform_gdal_geometry)
+    t = _get_instance_from_gdal_layer(
+        mock_class, mock_gdal_layer, mock_transform_gdal_geometry)
+    assert not len(t.geometries)
 
 
 def test_get_load_geometry_object():

@@ -50,24 +50,22 @@ class GeoTable(pd.DataFrame):
             try:
                 source_folder = uncompress(source_path, storage.folder)
             except BadFormat:
-                if source_path.endswith('.shp'):
-                    return Class.from_shp(
-                        source_path, source_proj4, target_proj4)
                 if source_path.endswith('.csv'):
                     return Class.from_csv(
                         source_path, source_proj4, target_proj4, **kw)
-                raise GeoTableError(
-                    'file format not supported (%s)' % source_path)
-            try:
-                return concatenate_tables(Class.from_shp(
-                    x, source_proj4, target_proj4
-                ) for x in find_paths(source_folder, '*.shp'))
-            except (GeoTableError, ValueError):
-                pass
+                else:
+                    return Class.from_gdal(
+                        source_path, source_proj4, target_proj4)
             try:
                 return concatenate_tables(Class.from_csv(
                     x, source_proj4, target_proj4, **kw
                 ) for x in find_paths(source_folder, '*.csv'))
+            except (GeoTableError, ValueError):
+                pass
+            try:
+                return concatenate_tables(Class.from_gdal(
+                    x, source_proj4, target_proj4
+                ) for x in find_paths(source_folder, '*.shp'))
             except (GeoTableError, ValueError):
                 pass
         return Class()
@@ -78,11 +76,11 @@ class GeoTable(pd.DataFrame):
         return _make_geotable(t)
 
     @classmethod
-    def from_shp(Class, source_path, source_proj4=None, target_proj4=None):
+    def from_gdal(Class, source_path, source_proj4=None, target_proj4=None):
         try:
             gdal_dataset = gdal.OpenEx(source_path)
         except RuntimeError:
-            raise GeoTableError('shapefile unloadable (%s)' % source_path)
+            raise GeoTableError('file unloadable (%s)' % source_path)
         instances = []
         for layer_index in range(gdal_dataset.GetLayerCount()):
             gdal_layer = gdal_dataset.GetLayer(layer_index)
