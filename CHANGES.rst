@@ -1,5 +1,6 @@
 0.4
 ---
+- Exclude redundant geometry columns when saving
 - Load KMZ and other OGR vector formats
 - Support initialization from GeoTable class
 

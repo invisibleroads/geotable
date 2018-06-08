@@ -14,7 +14,7 @@ from shapely.geometry import GeometryCollection
 
 from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
-    _ensure_geometry_columns,
+    _ensure_geotable_columns,
     _get_geometry_columns,
     _get_instance_for_csv,
     _get_instance_from_gdal_layer,
@@ -140,7 +140,7 @@ class GeoTable(pd.DataFrame):
         return self.to_gdal(
             target_path, target_proj4, driver_name='ESRI Shapefile')
 
-    @_ensure_geometry_columns
+    @_ensure_geotable_columns
     def to_csv(self, target_path, target_proj4=None, **kw):
         try:
             t = concatenate_tables(_get_instance_for_csv(
@@ -160,7 +160,7 @@ class GeoTable(pd.DataFrame):
             if geometry_proj4 != LONGITUDE_LATITUDE_PROJ4:
                 open(replace_file_extension(
                     target_path, '.proj4'), 'wt').write(geometry_proj4)
-        t = t.drop(excluded_column_names, axis=1)
+        t = t.drop(columns=excluded_column_names)
 
         with TemporaryStorage() as storage:
             temporary_path = join(storage.folder, 'geotable.csv')
@@ -170,7 +170,7 @@ class GeoTable(pd.DataFrame):
             else:
                 move_path(target_path, temporary_path)
 
-    @_ensure_geometry_columns
+    @_ensure_geotable_columns
     def to_gdal(
             self, target_path, target_proj4=None,
             driver_name='ESRI Shapefile'):
@@ -180,22 +180,28 @@ class GeoTable(pd.DataFrame):
         if not has_archive_extension(target_path):
             raise GeoTableError(
                 'archive extension expected (%s)' % (target_path))
+        try:
+            geometry_columns = _get_geometry_columns(self)
+        except GeoTableError as e:
+            table = self
+        else:
+            table = self.drop(columns=geometry_columns)
         with TemporaryStorage() as storage:
             gdal_dataset = gdal_driver.Create(storage.folder, 0, 0)
-            for layer_name, layer_t in self.groupby('geometry_layer'):
+            for layer_name, layer_t in table.groupby('geometry_layer'):
                 _prepare_gdal_layer(
                     layer_t, gdal_dataset, target_proj4, layer_name)
             gdal_dataset.FlushCache()
             compress(storage.folder, target_path)
 
-    @_ensure_geometry_columns
+    @_ensure_geotable_columns
     def draw(self):
         'Render layers in Jupyter Notebook'
         return ColorfulGeometryCollection([GeometryCollection(
             x.get_geometries(SPHERICAL_MERCATOR_PROJ4)
         ) for _, x in self.groupby('geometry_layer')])
 
-    @_ensure_geometry_columns
+    @_ensure_geotable_columns
     def get_geometries(self, target_proj4=None):
         geometry_by_index = {}
         for source_proj4, proj4_t in self.groupby('geometry_proj4'):
@@ -210,7 +216,7 @@ class GeoTable(pd.DataFrame):
             'geometry_object', 'geometry_layer', 'geometry_proj4']]
 
     @property
-    @_ensure_geometry_columns
+    @_ensure_geotable_columns
     def geometries(self):
         return list(self['geometry_object'])
 

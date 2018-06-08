@@ -124,8 +124,24 @@ def _get_instance_for_csv(instance, source_proj4, target_proj4):
     transform_shapely_geometry = get_transform_shapely_geometry(
         source_proj4, target_proj4)
     instance = instance.copy()
-    instance['wkt'] = [transform_shapely_geometry(
-        x).wkt for x in instance.pop('geometry_object')]
+    geometries = [transform_shapely_geometry(
+        g) for g in instance.pop('geometry_object')]
+
+    for column_name in instance.columns:
+        normalized_column_name = _normalize_column_name(column_name)
+        if normalized_column_name == 'wkt':
+            break
+        if target_proj4 != LONGITUDE_LATITUDE_PROJ4:
+            continue
+        if normalized_column_name == 'longitudelatitudewkt':
+            break
+        if normalized_column_name == 'latitudelongitudewkt':
+            geometries = transform_geometries(geometries, flip_xy)
+            break
+    else:
+        column_name = 'wkt'
+
+    instance[column_name] = [g.wkt for g in geometries]
     instance['geometry_proj4'] = normalize_proj4(
         target_proj4 or source_proj4)
     return instance
@@ -258,7 +274,7 @@ def _transform_field_value(field_value, field_type):
     return field_value
 
 
-def _ensure_geometry_columns(f):
+def _ensure_geotable_columns(f):
 
     def wrap(*args, **kw):
         _make_geotable(args[0])

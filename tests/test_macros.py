@@ -5,6 +5,7 @@ from geotable.exceptions import GeoTableError
 from geotable.macros import (
     _get_geometry_columns,
     _get_get_field_values,
+    _get_instance_for_csv,
     _get_instance_from_gdal_layer,
     _get_load_geometry_object,
     _get_proj4_from_gdal_layer,
@@ -14,6 +15,7 @@ from geotable.projections import LONGITUDE_LATITUDE_PROJ4
 from mock import MagicMock
 from osgeo import ogr
 from pytest import raises
+from shapely.errors import WKBReadingError
 from shapely.geometry import Point
 
 from conftest import prepare_feature
@@ -77,6 +79,27 @@ def test_get_get_field_values():
     assert f(feature) == field_values
 
 
+def test_get_instance_for_csv():
+    geotable_columns = ['geometry_object']
+    t = _get_instance_for_csv(
+        pd.DataFrame([], columns=geotable_columns + ['WKT']),
+        LONGITUDE_LATITUDE_PROJ4, LONGITUDE_LATITUDE_PROJ4)
+    assert 'wkt' not in t.columns
+    assert 'WKT' in t.columns
+
+    t = _get_instance_for_csv(
+        pd.DataFrame([], columns=geotable_columns + ['longitudelatitudewkt']),
+        LONGITUDE_LATITUDE_PROJ4, LONGITUDE_LATITUDE_PROJ4)
+    assert 'wkt' not in t.columns
+    assert 'longitudelatitudewkt' in t.columns
+
+    t = _get_instance_for_csv(
+        pd.DataFrame([], columns=geotable_columns + ['latitudelongitudewkt']),
+        LONGITUDE_LATITUDE_PROJ4, LONGITUDE_LATITUDE_PROJ4)
+    assert 'wkt' not in t.columns
+    assert 'latitudelongitudewkt' in t.columns
+
+
 def test_get_instance_from_gdal_layer(mocker):
     f = mocker.patch.object(macros, '_get_field_type_by_name')
     f.return_value = {}
@@ -87,6 +110,14 @@ def test_get_instance_from_gdal_layer(mocker):
     mock_gdal_layer.GetFeatureCount.return_value = 1
     mock_gdal_layer.GetFeature.return_value = None
     mock_transform_gdal_geometry = MagicMock()
+    t = _get_instance_from_gdal_layer(
+        mock_class, mock_gdal_layer, mock_transform_gdal_geometry)
+    assert not len(t.geometries)
+    mock_transformed_gdal_geometry = MagicMock()
+    mock_transformed_gdal_geometry.ExportToWkb.side_effect = WKBReadingError()
+    mock_transform_gdal_geometry.return_value = mock_transformed_gdal_geometry
+    mock_feature = MagicMock()
+    mock_gdal_layer.GetFeature.return_value = mock_feature
     t = _get_instance_from_gdal_layer(
         mock_class, mock_gdal_layer, mock_transform_gdal_geometry)
     assert not len(t.geometries)
