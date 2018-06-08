@@ -1,3 +1,8 @@
+0.4
+---
+- Load KMZ and other OGR vector formats
+- Support initialization from GeoTable class
+
 0.3
 ---
 - Add GeoTable.from_records
