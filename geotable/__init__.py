@@ -150,7 +150,10 @@ class GeoTable(pd.DataFrame):
         return target_path
 
     def to_kmz(self, target_path, target_proj4=None):
-        self.to_gdal(target_path, target_proj4, driver_name='LIBKML')
+        self.to_gdal(
+            target_path,
+            target_proj4=LONGITUDE_LATITUDE_PROJ4,
+            driver_name='LIBKML')
         return target_path
 
     def to_shp(self, target_path, target_proj4=None):
