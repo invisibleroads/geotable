@@ -5,6 +5,7 @@ from invisibleroads_macros.disk import (
     TemporaryStorage, compress, compress_zip, find_paths, get_file_stem,
     has_archive_extension, move_path, replace_file_extension, uncompress)
 from invisibleroads_macros.exceptions import BadFormat
+from invisibleroads_macros.geometry import drop_z, transform_geometries
 from invisibleroads_macros.html import make_random_color
 from invisibleroads_macros.table import load_csv_safely
 from invisibleroads_macros.text import unicode_safely
@@ -31,6 +32,11 @@ from .projections import (
     normalize_proj4,
     LONGITUDE_LATITUDE_PROJ4,
     SPHERICAL_MERCATOR_PROJ4)
+
+
+KML_COLUMNS = [
+    'description', 'timestamp', 'begin', 'end', 'altitudeMode', 'tessellate',
+    'extrude', 'visibility', 'drawOrder', 'icon']
 
 
 class GeoTable(pd.DataFrame):
@@ -90,7 +96,10 @@ class GeoTable(pd.DataFrame):
             t['geometry_layer'] = unicode_safely(gdal_layer.GetName())
             t['geometry_proj4'] = normalize_proj4(target_proj4 or row_proj4)
             instances.append(t)
-        return concatenate_tables(instances)
+        t = concatenate_tables(instances)
+        if source_path.endswith('.kmz') or source_path.endswith('.kml'):
+            t = t.drop(columns=KML_COLUMNS, errors='ignore')
+        return t
 
     @classmethod
     def from_csv(
@@ -281,6 +290,18 @@ class ColorfulGeometryCollection(GeometryCollection):
             return '<g />'
         return '<g>%s</g>' % ''.join(p.svg(scale_factor, c) for p, c in zip(
             self, self.colors))
+
+
+def load_utm_proj4(source_path):
+    return GeoTable.load_utm_proj4(source_path)
+
+
+def load(source_path, source_proj4=None, target_proj4=None, with_z=True, **kw):
+    t = GeoTable.load(source_path, source_proj4, target_proj4, **kw)
+    if not with_z:
+        t['geometry_object'] = transform_geometries(
+            t['geometry_object'], drop_z)
+    return t
 
 
 concatenate_tables = partial(pd.concat, ignore_index=True)

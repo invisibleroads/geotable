@@ -1,5 +1,6 @@
 import pandas as pd
-from geotable import ColorfulGeometryCollection, GeoRow, GeoTable
+from geotable import (
+    ColorfulGeometryCollection, GeoRow, GeoTable, load, load_utm_proj4)
 from geotable.exceptions import EmptyGeoTableError, GeoTableError
 from geotable.projections import (
     normalize_proj4, LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
@@ -17,9 +18,16 @@ UTM_PROJ4 = '+proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 class TestGeoTable(object):
 
     def test_load_utm_proj4(self):
+        assert load_utm_proj4(join(FOLDER, 'xyz.kmz')) == UTM_PROJ4
         assert GeoTable.load_utm_proj4(join(FOLDER, 'shp.zip')) == UTM_PROJ4
 
     def test_load(self, tmpdir):
+        t = load(join(FOLDER, 'xyz.kmz'))
+        assert len(t.iloc[0]['geometry_object'].coords[0]) == 3
+
+        t = load(join(FOLDER, 'xyz.kmz'), with_z=False)
+        assert len(t.iloc[0]['geometry_object'].coords[0]) == 2
+
         t = GeoTable.load(join(FOLDER, 'shp', 'a.shp'))
         assert t['date'].dtype.name == 'datetime64[ns]'
 

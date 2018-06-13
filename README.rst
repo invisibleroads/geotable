@@ -1,14 +1,18 @@
 GeoTable
 ========
-Read and write spatial vectors from shapefiles and CSVs thanks to `GDAL <http://www.gdal.org>`_ and `pandas <http://pandas.pydata.org>`_.
+Read and write spatial vectors in the following formats thanks to `GDAL <http://www.gdal.org>`_ and `pandas <http://pandas.pydata.org>`_.
+
+- KMZ
+- SHP
+- CSV
 
 
 Install
 -------
 ::
 
-    sudo dnf -y install gdal-python3
-    # sudo apt-get -y install python3-gdal
+    sudo dnf -y install gdal-python3 libkml
+    # sudo apt-get -y install python3-gdal libkml
     virtualenv -p $(which python3) --system-site-packages \
         ~/.virtualenvs/crosscompute
     source ~/.virtualenvs/crosscompute/bin/activate
@@ -17,11 +21,17 @@ Install
 
 Use
 ---
+Load KMZ files. ::
+
+    In [1]: import geotable
+
+    In [2]: t = geotable.load('xyz.kmz')
+
 Load shapefiles. ::
 
-    In [1]: from geotable import GeoTable
+    In [1]: import geotable
 
-    In [2]: t = GeoTable.load('shp.zip')
+    In [2]: t = geotable.load('shp.zip')
 
     In [3]: t.iloc[0]
     Out[3]:
@@ -36,9 +46,9 @@ Load shapefiles. ::
 
 Load CSVs containing spatial information. ::
 
-    GeoTable.load('wkt.csv')  # Load single CSV
-    GeoTable.load('csv.zip')  # Load archive of multiple CSVs
-    GeoTable.load('csv.zip', parse_dates=['date'])  # Configure pandas.read_csv
+    geotable.load('wkt.csv')  # Load single CSV
+    geotable.load('csv.zip')  # Load archive of multiple CSVs
+    geotable.load('csv.zip', parse_dates=['date'])  # Configure pandas.read_csv
 
 Handle CSVs with different geometry columns. ::
 
@@ -81,33 +91,36 @@ Handle CSVs with different spatial references. ::
 Load and save in `different spatial references <http://spatialreference.org>`_. ::
 
     from geotable.projections import SPHERICAL_MERCATOR_PROJ4
-    t = GeoTable.load('shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t = geotable.load('shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
 
     from geotable.projections import LONGITUDE_LATITUDE_PROJ4
-    t.to_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+    t.save_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
 
 Use LONGITUDE_LATITUDE_PROJ4 for compatibility with algorithms that use geodesic distance such as those found in `geopy <https://pypi.python.org/pypi/geopy>`_ and `pysal <http://pysal.readthedocs.io/en/latest>`_. Geodesic distance is also known as arc distance and is the distance between two points as measured using the curvature of the Earth. If your locations are spread over a large geographic extent, geodesic longitude and latitude coordinates provide greater accuracy than Euclidean XY coordinates. ::
 
     from geotable.projections import LONGITUDE_LATITUDE_PROJ4
-    t = GeoTable.load('shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
-    t.to_csv('/tmp/csv.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
-    t.to_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+    t = geotable.load('shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+    t.save_csv('/tmp/csv.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+    t.save_shp('/tmp/shp.zip', target_proj4=LONGITUDE_LATITUDE_PROJ4)
+    t.save_kmz('/tmp/xyz.kmz', target_proj4=LONGITUDE_LATITUDE_PROJ4)
 
 Use the `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system>`_ projection for compatibility with algorithms that use Euclidean distance on XY coordinates such as those found in `scipy.spatial <https://docs.scipy.org/doc/scipy/reference/spatial.html>`_. If you know that your locations are confined to a small region, you can use the projected XY coordinates with standard Euclidean based algorithms, which tend to be significantly faster than their geodesic variants. ::
 
-    utm_proj4 = GeoTable.load_utm_proj4('shp.zip')
-    t = GeoTable.load('csv.zip', target_proj4=utm_proj4)
-    t.to_csv('/tmp/csv.zip', target_proj4=utm_proj4)
-    t.to_shp('/tmp/shp.zip', target_proj4=utm_proj4)
+    utm_proj4 = geotable.load_utm_proj4('shp.zip')
+    t = geotable.load('csv.zip', target_proj4=utm_proj4)
+    t.save_csv('/tmp/csv.zip', target_proj4=utm_proj4)
+    t.save_shp('/tmp/shp.zip', target_proj4=utm_proj4)
+    t.save_kmz('/tmp/xyz.kmz', target_proj4=utm_proj4)
 
 Use the `Spherical Mercator <https://en.wikipedia.org/wiki/Web_Mercator>`_ projection when visualization is more important than accuracy. Do not use this projection for algorithms where spatial accuracy is important. ::
 
     from geotable.projections import SPHERICAL_MERCATOR_PROJ4
-    t = GeoTable.load('wkt.csv', target_proj4=SPHERICAL_MERCATOR_PROJ4)
-    t.to_csv('/tmp/csv.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
-    t.to_shp('/tmp/shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t = geotable.load('wkt.csv', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t.save_csv('/tmp/csv.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t.save_shp('/tmp/shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t.save_kmz('/tmp/xyz.kmz', target_proj4=SPHERICAL_MERCATOR_PROJ4)
 
 You can render your spatial vectors in Jupyter Notebook with the ``draw`` function. Each geometry layer will appear in a different color. ::
 
-    t = GeoTable.load('wkt.csv')
+    t = geotable.load('wkt.csv')
     t.draw()  # Render the geometries in Jupyter Notebook
