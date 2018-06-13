@@ -1,7 +1,7 @@
 0.4
 ---
+- Add GeoTable.save_kmz
 - Exclude redundant geometry columns when saving
-- Load KMZ and other OGR vector formats
 - Support initialization from GeoTable class
 
 0.3

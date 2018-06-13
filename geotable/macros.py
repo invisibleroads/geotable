@@ -2,6 +2,7 @@ import inspect
 import numpy as np
 from collections import OrderedDict
 from datetime import datetime
+from functools import wraps
 from invisibleroads_macros.disk import get_file_stem, replace_file_extension
 from invisibleroads_macros.geometry import flip_xy, transform_geometries
 from invisibleroads_macros.log import get_log
@@ -151,9 +152,10 @@ def _get_instance_from_gdal_layer(Class, gdal_layer, transform_gdal_geometry):
     rows = []
     field_type_by_name = _get_field_type_by_name(gdal_layer)
     get_field_values = _get_get_field_values(field_type_by_name)
-    for feature_index in range(gdal_layer.GetFeatureCount()):
-        feature = gdal_layer.GetFeature(feature_index)
-        if not feature:
+    feature_count = gdal_layer.GetFeatureCount()
+    for feature_index in range(feature_count):
+        feature = gdal_layer.GetNextFeature()
+        if feature is None:
             L.warning('feature unreadable (index=%s)' % feature_index)
             continue
         gdal_geometry = feature.GetGeometryRef()
@@ -276,7 +278,8 @@ def _transform_field_value(field_value, field_type):
 
 def _ensure_geotable_columns(f):
 
-    def wrap(*args, **kw):
+    @wraps(f)
+    def wrapped_function(*args, **kw):
         _make_geotable(args[0])
         arguments = inspect.signature(f).bind(*args, **kw).arguments
         try:
@@ -289,7 +292,7 @@ def _ensure_geotable_columns(f):
             self['geometry_layer'].replace('', target_stem, inplace=True)
         return f(*args, **kw)
 
-    return wrap
+    return wrapped_function
 
 
 def _make_geotable(t):

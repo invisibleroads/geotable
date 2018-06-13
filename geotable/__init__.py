@@ -2,7 +2,7 @@ import pandas as pd
 import utm
 from functools import partial
 from invisibleroads_macros.disk import (
-    TemporaryStorage, compress, find_paths, get_file_stem,
+    TemporaryStorage, compress, compress_zip, find_paths, get_file_stem,
     has_archive_extension, move_path, replace_file_extension, uncompress)
 from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.html import make_random_color
@@ -126,6 +126,10 @@ class GeoTable(pd.DataFrame):
         t['geometry_object'] = geometry_objects
         return Class(t.drop(geometry_columns, axis=1))
 
+    def save_kmz(self, target_path, target_proj4=None):
+        self.to_kmz(target_path, target_proj4)
+        return target_path
+
     def save_shp(self, target_path, target_proj4=None):
         self.to_shp(target_path, target_proj4)
         return target_path
@@ -136,7 +140,14 @@ class GeoTable(pd.DataFrame):
         self.to_csv(target_path, target_proj4, **kw)
         return target_path
 
+    def to_kmz(self, target_path, target_proj4=None):
+        self.to_gdal(target_path, target_proj4, driver_name='LIBKML')
+        return target_path
+
     def to_shp(self, target_path, target_proj4=None):
+        if not has_archive_extension(target_path):
+            raise GeoTableError(
+                'archive extension expected (%s)' % (target_path))
         return self.to_gdal(
             target_path, target_proj4, driver_name='ESRI Shapefile')
 
@@ -177,22 +188,31 @@ class GeoTable(pd.DataFrame):
         gdal_driver = gdal.GetDriverByName(driver_name)
         if not gdal_driver:
             raise GeoTableError('gdal driver missing (%s)' % driver_name)
-        if not has_archive_extension(target_path):
-            raise GeoTableError(
-                'archive extension expected (%s)' % (target_path))
         try:
             geometry_columns = _get_geometry_columns(self)
         except GeoTableError as e:
             table = self
         else:
             table = self.drop(columns=geometry_columns)
+        as_archive = has_archive_extension(target_path)
+        as_kmz = target_path.endswith('.kmz')
         with TemporaryStorage() as storage:
-            gdal_dataset = gdal_driver.Create(storage.folder, 0, 0)
+            if as_archive:
+                gdal_dataset_path = storage.folder
+            elif as_kmz:
+                gdal_dataset_path = join(storage.folder, get_file_stem(
+                    target_path) + '.kml')
+            else:
+                gdal_dataset_path = target_path
+            gdal_dataset = gdal_driver.Create(gdal_dataset_path, 0, 0)
             for layer_name, layer_t in table.groupby('geometry_layer'):
                 _prepare_gdal_layer(
                     layer_t, gdal_dataset, target_proj4, layer_name)
             gdal_dataset.FlushCache()
-            compress(storage.folder, target_path)
+            if as_archive:
+                compress(storage.folder, target_path)
+            elif as_kmz:
+                compress_zip(storage.folder, target_path)
 
     @_ensure_geotable_columns
     def draw(self):

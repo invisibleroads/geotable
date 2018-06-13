@@ -108,7 +108,7 @@ def test_get_instance_from_gdal_layer(mocker):
     mock_class = MagicMock()
     mock_gdal_layer = MagicMock()
     mock_gdal_layer.GetFeatureCount.return_value = 1
-    mock_gdal_layer.GetFeature.return_value = None
+    mock_gdal_layer.GetNextFeature.return_value = None
     mock_transform_gdal_geometry = MagicMock()
     t = _get_instance_from_gdal_layer(
         mock_class, mock_gdal_layer, mock_transform_gdal_geometry)
@@ -117,7 +117,7 @@ def test_get_instance_from_gdal_layer(mocker):
     mock_transformed_gdal_geometry.ExportToWkb.side_effect = WKBReadingError()
     mock_transform_gdal_geometry.return_value = mock_transformed_gdal_geometry
     mock_feature = MagicMock()
-    mock_gdal_layer.GetFeature.return_value = mock_feature
+    mock_gdal_layer.GetNextFeature.return_value = mock_feature
     t = _get_instance_from_gdal_layer(
         mock_class, mock_gdal_layer, mock_transform_gdal_geometry)
     assert not len(t.geometries)

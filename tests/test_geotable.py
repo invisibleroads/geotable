@@ -92,6 +92,20 @@ class TestGeoTable(object):
         assert t.iloc[0]['geometry_proj4'] == normalize_proj4(open(join(
             FOLDER, 'csv', 'proj4-from-file.proj4')).read())
 
+    def test_save_kml(self, geotable, tmpdir):
+        target_path = str(tmpdir.join('x.kml'))
+        geotable.save_kmz(target_path)
+
+        t = GeoTable.load(target_path)
+        assert len(t) == 1
+
+    def test_save_kmz(self, geotable, tmpdir):
+        target_path = str(tmpdir.join('x.kmz'))
+        geotable.save_kmz(target_path)
+
+        t = GeoTable.load(target_path)
+        assert len(t) == 1
+
     def test_save_shp(self, geotable, tmpdir):
         target_path = str(tmpdir.join('x.shp'))
         with raises(GeoTableError):
