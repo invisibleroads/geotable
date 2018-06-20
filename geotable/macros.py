@@ -280,17 +280,17 @@ def _ensure_geotable_columns(f):
 
     @wraps(f)
     def wrapped_function(*args, **kw):
-        _make_geotable(args[0])
+        self = args[0].copy()
+        _make_geotable(self)
         arguments = inspect.signature(f).bind(*args, **kw).arguments
         try:
-            self = arguments['self']
             target_path = arguments['target_path']
         except KeyError:
             pass
         else:
             target_stem = unicode_safely(get_file_stem(target_path))
             self['geometry_layer'].replace('', target_stem, inplace=True)
-        return f(*args, **kw)
+        return f(self, *args[1:], **kw)
 
     return wrapped_function
 
