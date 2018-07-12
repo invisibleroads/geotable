@@ -183,6 +183,12 @@ class GeoTable(pd.DataFrame):
             if geometry_proj4 != LONGITUDE_LATITUDE_PROJ4:
                 open(replace_file_extension(
                     target_path, '.proj4'), 'wt').write(geometry_proj4)
+        if len(t) == 0:
+            excluded_column_names.extend([
+                'geometry_layer',
+                'geometry_proj4',
+                'geometry_object'])
+            t['wkt'] = ''
         t = t.drop(columns=excluded_column_names)
 
         with TemporaryStorage() as storage:
