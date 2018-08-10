@@ -36,7 +36,7 @@ from .projections import (
 
 KML_COLUMNS = [
     'description', 'timestamp', 'begin', 'end', 'altitudeMode', 'tessellate',
-    'extrude', 'visibility', 'drawOrder', 'icon']
+    'extrude', 'visibility', 'drawOrder', 'icon', 'snippet']
 
 
 class GeoTable(pd.DataFrame):
