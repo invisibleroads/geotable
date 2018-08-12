@@ -135,6 +135,10 @@ class GeoTable(pd.DataFrame):
         t['geometry_object'] = geometry_objects
         return Class(t.drop(geometry_columns, axis=1))
 
+    def save_geojson(self, target_path, target_proj4=None):
+        self.to_geojson(target_path, target_proj4)
+        return target_path
+
     def save_kmz(self, target_path, target_proj4=None):
         self.to_kmz(target_path, target_proj4)
         return target_path
@@ -147,6 +151,13 @@ class GeoTable(pd.DataFrame):
         if 'index' not in kw:
             kw['index'] = False
         self.to_csv(target_path, target_proj4, **kw)
+        return target_path
+
+    def to_geojson(self, target_path, target_proj4=None):
+        self.to_gdal(
+            target_path,
+            target_proj4=LONGITUDE_LATITUDE_PROJ4,
+            driver_name='GeoJSON')
         return target_path
 
     def to_kmz(self, target_path, target_proj4=None):

@@ -2,6 +2,7 @@ GeoTable
 ========
 Read and write spatial vectors in the following formats thanks to `GDAL <http://www.gdal.org>`_ and `pandas <http://pandas.pydata.org>`_.
 
+- GeoJSON
 - KMZ
 - SHP
 - CSV
@@ -124,3 +125,11 @@ You can render your spatial vectors in Jupyter Notebook with the ``draw`` functi
 
     t = geotable.load('wkt.csv')
     t.draw()  # Render the geometries in Jupyter Notebook
+
+
+Test
+----
+::
+
+    pip install pytest pytest-cov
+    py.test --cov-report term-missing --cov=geotable tests
