@@ -1,5 +1,6 @@
 0.4
 ---
+- Add GeoTable.save_geojson
 - Add GeoTable.save_kmz
 - Exclude redundant geometry columns when saving
 - Support initialization from GeoTable class
