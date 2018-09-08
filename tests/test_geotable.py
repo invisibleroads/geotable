@@ -24,9 +24,12 @@ class TestGeoTable(object):
     def test_load(self, tmpdir):
         t = load(join(FOLDER, 'xyz.kmz'))
         assert len(t.iloc[0]['geometry_object'].coords[0]) == 3
+        assert len(t) == 3
 
-        t = load(join(FOLDER, 'xyz.kmz'), with_z=False)
+        t = load(join(FOLDER, 'xyz.kmz'), drop_z=True, bounding_box=(
+            -83.743038, 42.280826, -83.743037, 42.280825))
         assert len(t.iloc[0]['geometry_object'].coords[0]) == 2
+        assert len(t) == 1
 
         t = GeoTable.load(join(FOLDER, 'shp', 'a.shp'))
         assert t['date'].dtype.name == 'datetime64[ns]'

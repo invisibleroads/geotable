@@ -4,14 +4,14 @@ from functools import partial
 from invisibleroads_macros.disk import (
     TemporaryStorage, compress, compress_zip, find_paths, get_file_stem,
     has_archive_extension, move_path, replace_file_extension, uncompress)
+from invisibleroads_macros import geometry
 from invisibleroads_macros.exceptions import BadFormat
-from invisibleroads_macros.geometry import drop_z, transform_geometries
 from invisibleroads_macros.html import make_random_color
 from invisibleroads_macros.table import load_csv_safely
 from invisibleroads_macros.text import unicode_safely
 from os.path import join
 from osgeo import gdal, ogr, osr
-from shapely.geometry import GeometryCollection
+from shapely.geometry import GeometryCollection, box
 
 from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
@@ -51,7 +51,26 @@ class GeoTable(pd.DataFrame):
         return get_utm_proj4(zone_number, zone_letter)
 
     @classmethod
-    def load(Class, source_path, source_proj4=None, target_proj4=None, **kw):
+    def load(
+            Class, source_path, source_proj4=None, target_proj4=None,
+            drop_z=False, bounding_box=None, **kw):
+        t = Class._load(source_path, source_proj4, target_proj4, drop_z, **kw)
+        if drop_z:
+            t['geometry_object'] = geometry.transform_geometries(
+                t['geometry_object'], geometry.drop_z)
+        if bounding_box:
+            f = get_transform_shapely_geometry(
+                LONGITUDE_LATITUDE_PROJ4, target_proj4)
+            projected_box = f(box(*bounding_box))
+            indices = [i for i, g in enumerate(t.geometries) if g.intersects(
+                projected_box)]
+            t = t.iloc[indices].copy()
+        return t
+
+    @classmethod
+    def _load(
+            Class, source_path, source_proj4=None, target_proj4=None,
+            drop_z=False, **kw):
         with TemporaryStorage() as storage:
             try:
                 source_folder = uncompress(source_path, storage.folder)
@@ -316,12 +335,11 @@ def load_utm_proj4(source_path):
     return GeoTable.load_utm_proj4(source_path)
 
 
-def load(source_path, source_proj4=None, target_proj4=None, with_z=True, **kw):
-    t = GeoTable.load(source_path, source_proj4, target_proj4, **kw)
-    if not with_z:
-        t['geometry_object'] = transform_geometries(
-            t['geometry_object'], drop_z)
-    return t
+def load(
+        source_path, source_proj4=None, target_proj4=None, drop_z=False,
+        bounding_box=None, **kw):
+    return GeoTable.load(
+        source_path, source_proj4, target_proj4, drop_z, bounding_box, **kw)
 
 
 concatenate_tables = partial(pd.concat, ignore_index=True)
