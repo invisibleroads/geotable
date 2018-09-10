@@ -53,17 +53,18 @@ class GeoTable(pd.DataFrame):
     @classmethod
     def load(
             Class, source_path, source_proj4=None, target_proj4=None,
-            drop_z=False, bounding_box=None, **kw):
+            drop_z=False, bounding_box=None, bounding_polygon=None, **kw):
         t = Class._load(source_path, source_proj4, target_proj4, drop_z, **kw)
         if drop_z:
             t['geometry_object'] = geometry.transform_geometries(
                 t['geometry_object'], geometry.drop_z)
-        if bounding_box:
+        if bounding_box and bounding_box != (-180, -90, +180, +90):
             f = get_transform_shapely_geometry(
                 LONGITUDE_LATITUDE_PROJ4, target_proj4)
-            projected_box = f(box(*bounding_box))
+            bounding_polygon = f(box(*bounding_box))
+        if bounding_polygon:
             indices = [i for i, g in enumerate(t.geometries) if g.intersects(
-                projected_box)]
+                bounding_polygon)]
             t = t.iloc[indices].copy()
         return t
 
@@ -336,10 +337,21 @@ def load_utm_proj4(source_path):
 
 
 def load(
-        source_path, source_proj4=None, target_proj4=None, drop_z=False,
-        bounding_box=None, **kw):
+        source_path,
+        source_proj4=None,
+        target_proj4=None,
+        drop_z=False,
+        bounding_box=None,
+        bounding_polygon=None,
+        **kw):
     return GeoTable.load(
-        source_path, source_proj4, target_proj4, drop_z, bounding_box, **kw)
+        source_path,
+        source_proj4,
+        target_proj4,
+        drop_z,
+        bounding_box,
+        bounding_polygon,
+        **kw)
 
 
 concatenate_tables = partial(pd.concat, ignore_index=True)
