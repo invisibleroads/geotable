@@ -1,6 +1,7 @@
 import pandas as pd
 import utm
-from functools import partial
+from functools import partial, wraps
+from inspect import signature
 from invisibleroads_macros.disk import (
     TemporaryStorage, compress, compress_zip, find_paths, get_file_stem,
     has_archive_extension, move_path, replace_file_extension, uncompress)
@@ -40,6 +41,21 @@ KML_COLUMNS = [
 
 
 class GeoTable(pd.DataFrame):
+
+    @classmethod
+    def define_load_with_utm_proj4(Class, source_path):
+        utm_proj4 = Class.load_utm_proj4(source_path)
+        f = Class.load
+        f_signature = signature(f)
+
+        @wraps(f)
+        def load_geotable_with_utm_proj4(*args, **kw):
+            kw = f_signature.bind(*args, **kw).arguments
+            if 'target_proj4' not in kw:
+                kw['target_proj4'] = utm_proj4
+            return f(**kw)
+
+        return load_geotable_with_utm_proj4
 
     @classmethod
     def load_utm_proj4(Class, source_path):
@@ -330,6 +346,10 @@ class ColorfulGeometryCollection(GeometryCollection):
             return '<g />'
         return '<g>%s</g>' % ''.join(p.svg(scale_factor, c) for p, c in zip(
             self, self.colors))
+
+
+def define_load_with_utm_proj4(source_path):
+    return GeoTable.define_load_with_utm_proj4(source_path)
 
 
 def load_utm_proj4(source_path):

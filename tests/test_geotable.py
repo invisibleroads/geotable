@@ -1,6 +1,11 @@
 import pandas as pd
 from geotable import (
-    ColorfulGeometryCollection, GeoRow, GeoTable, load, load_utm_proj4)
+    ColorfulGeometryCollection,
+    GeoRow,
+    GeoTable,
+    define_load_with_utm_proj4,
+    load,
+    load_utm_proj4)
 from geotable.exceptions import EmptyGeoTableError, GeoTableError
 from geotable.projections import (
     normalize_proj4, LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
@@ -16,6 +21,16 @@ UTM_PROJ4 = '+proj=utm +zone=17 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 
 
 class TestGeoTable(object):
+
+    def test_define_load_with_utm_proj4(self):
+        source_path = join(FOLDER, 'xyz.kmz')
+        load_with_utm_proj4 = define_load_with_utm_proj4(source_path)
+        proj4 = load_utm_proj4(source_path)
+        t1 = load_with_utm_proj4(source_path)
+        t2 = load(source_path)
+        t3 = load(source_path, target_proj4=proj4)
+        assert t1.geometries[0].wkt != t2.geometries[0].wkt
+        assert t1.geometries[0].wkt == t3.geometries[0].wkt
 
     def test_load_utm_proj4(self):
         assert load_utm_proj4(join(FOLDER, 'xyz.kmz')) == UTM_PROJ4

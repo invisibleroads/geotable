@@ -22,6 +22,10 @@ Install
 
 Use
 ---
+If you cloned or downloaded the repository, you can run these examples in the ``tests`` folder. ::
+
+    $ cd tests
+
 Load KMZ files. ::
 
     In [1]: import geotable
@@ -47,29 +51,29 @@ Load shapefiles. ::
 
 Load CSVs containing spatial information. ::
 
-    geotable.load('wkt.csv')  # Load single CSV
+    geotable.load('csv/wkt.csv')  # Load single CSV
     geotable.load('csv.zip')  # Load archive of multiple CSVs
     geotable.load('csv.zip', parse_dates=['date'])  # Configure pandas.read_csv
 
 Handle CSVs with different geometry columns. ::
 
-    $ cat latitude_longitude.csv
+    $ cat csv/latitude_longitude.csv
     name,quantity,cost,date,latitude,longitude
     b,2,0.66,1990-01-01,14.8520705,-91.5305465
 
-    $ cat lat_lon.csv
+    $ cat csv/lat_lon.csv
     name,quantity,cost,date,lat,lon
     c,3,0.99,2000-01-01,42.2808256,-83.7430378
 
-    $ cat latitude_longitude_wkt.csv
+    $ cat csv/latitude_longitude_wkt.csv
     name,quantity,cost,date,latitude_longitude_wkt
     a,1,0.33,1980-01-01,POINT(42.3736158 -71.10973349999999)
 
-    $ cat longitude_latitude_wkt.csv
+    $ cat csv/longitude_latitude_wkt.csv
     name,quantity,cost,date,longitude_latitude_wkt
     a,1,0.33,1980-01-01,POINT(-71.10973349999999 42.3736158)
 
-    $ cat wkt.csv
+    $ cat csv/wkt.csv
     name,quantity,cost,date,wkt
     aaa,1,0.33,1980-01-01,"POINT(-71.10973349999999 42.3736158)"
     bbb,1,0.33,1980-01-01,"LINESTRING(-122.1374637 37.3796627,-92.5807231 37.1067189)"
@@ -116,15 +120,48 @@ Use the `Universal Transverse Mercator (UTM) <https://en.wikipedia.org/wiki/Univ
 Use the `Spherical Mercator <https://en.wikipedia.org/wiki/Web_Mercator>`_ projection when visualization is more important than accuracy. Do not use this projection for algorithms where spatial accuracy is important. ::
 
     from geotable.projections import SPHERICAL_MERCATOR_PROJ4
-    t = geotable.load('wkt.csv', target_proj4=SPHERICAL_MERCATOR_PROJ4)
+    t = geotable.load('csv/wkt.csv', target_proj4=SPHERICAL_MERCATOR_PROJ4)
     t.save_csv('/tmp/csv.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
     t.save_shp('/tmp/shp.zip', target_proj4=SPHERICAL_MERCATOR_PROJ4)
     t.save_kmz('/tmp/xyz.kmz', target_proj4=SPHERICAL_MERCATOR_PROJ4)
 
 You can render your spatial vectors in Jupyter Notebook with the ``draw`` function. Each geometry layer will appear in a different color. ::
 
-    t = geotable.load('wkt.csv')
+    t = geotable.load('csv/wkt.csv')
     t.draw()  # Render the geometries in Jupyter Notebook
+
+You can also use ``ColorfulGeometryCollection`` in Jupyter Notebook directly. ::
+
+    from geotable import ColorfulGeometryCollection
+    from shapely.geometry import Point
+    ColorfulGeometryCollection([Point(0, 0), Point(1, 1)])
+
+Here are some other convenience functions. ::
+
+    import geotable
+
+    # Show WKT for first geometry
+    geotable.load('xyz.kmz').geometries[0].wkt
+
+    # Load without z coordinates
+    geotable.load('xyz.kmz', drop_z=True).geometries[0].wkt
+
+    # Restrict geometries to bounding box
+    geotable.load('xyz.kmz', bounding_box=(-71.2, 42.37, -71.1, 42.38))
+
+    # Restrict geometries to bounding polygon
+    from shapely.geometry import Polygon
+    polygon = Polygon([
+        (-71.2, 42.37),
+        (-71.1, 42.37), 
+        (-71.1, 42.38),
+        (-71.2, 42.38)])
+    geotable.load('xyz.kmz', bounding_polygon=polygon)
+
+    # Load files according to a reference file's UTM projection
+    reference_path = 'xyz.kmz'
+    load = geotable.define_load_with_utm_proj4(reference_path)
+    load('csv/wkt.csv')
 
 
 Test
