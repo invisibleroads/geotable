@@ -68,9 +68,14 @@ class GeoTable(pd.DataFrame):
 
     @classmethod
     def load(
-            Class, source_path, source_proj4=None, target_proj4=None,
-            drop_z=False, bounding_box=None, bounding_polygon=None, **kw):
-        t = Class._load(source_path, source_proj4, target_proj4, drop_z, **kw)
+            Class,
+            source_path,
+            source_proj4=None,
+            target_proj4=None,
+            drop_z=False,
+            bounding_box=None,
+            bounding_polygon=None, **kw):
+        t = Class._load(source_path, source_proj4, target_proj4, **kw)
         if drop_z:
             t['geometry_object'] = geometry.transform_geometries(
                 t['geometry_object'], geometry.drop_z)
@@ -86,8 +91,10 @@ class GeoTable(pd.DataFrame):
 
     @classmethod
     def _load(
-            Class, source_path, source_proj4=None, target_proj4=None,
-            drop_z=False, **kw):
+            Class,
+            source_path,
+            source_proj4=None,
+            target_proj4=None, **kw):
         with TemporaryStorage() as storage:
             try:
                 source_folder = uncompress(source_path, storage.folder)
@@ -111,6 +118,13 @@ class GeoTable(pd.DataFrame):
             except (GeoTableError, ValueError):
                 pass
         return Class()
+
+    def drop_duplicate_geometries(self, inplace=False):
+        t = self if inplace else self.copy()
+        t['geometry_wkb'] = [g.wkb for g in t.geometries]
+        t.drop_duplicates(subset=['geometry_wkb'], inplace=True)
+        t.drop(columns=['geometry_wkb'], inplace=True)
+        return t
 
     @classmethod
     def from_records(Class, *args, **kw):
@@ -237,6 +251,8 @@ class GeoTable(pd.DataFrame):
                 'geometry_object'])
             t['wkt'] = ''
         t = t.drop(columns=excluded_column_names)
+        if len(t.columns) == 1:
+            t[''] = ''
 
         with TemporaryStorage() as storage:
             temporary_path = join(storage.folder, 'geotable.csv')

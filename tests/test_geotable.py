@@ -74,6 +74,19 @@ class TestGeoTable(object):
         with raises(GeoTableError):
             GeoTable.load(x_path)
 
+    def test_drop_duplicate_geometries(self):
+        t = GeoTable.from_records([
+            (0, 0),
+            (0, 0),
+            (0, 1),
+            (1, 2),
+        ], columns=['lon', 'lat'])
+        assert len(t) == 4
+        assert len(t.drop_duplicate_geometries()) == 3
+        assert len(t) == 4
+        assert len(t.drop_duplicate_geometries(inplace=True)) == 3
+        assert len(t) == 3
+
     def test_from_records(self):
         geometry = Point(0, 0)
 
