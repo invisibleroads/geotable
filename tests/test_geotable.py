@@ -74,6 +74,16 @@ class TestGeoTable(object):
         with raises(GeoTableError):
             GeoTable.load(x_path)
 
+        t = GeoTable.load(join(FOLDER, 'csv-bad.tar.gz'))
+        assert len(t) == 1
+        t = GeoTable.load(join(FOLDER, 'shp-bad.tar.gz'))
+        assert len(t) == 2
+
+        t = GeoTable.load(
+            'https://data.cityofnewyork.us/api/geospatial/tqmj-j8zm'
+            '?method=export&format=Original')
+        assert len(t) == 5
+
     def test_drop_duplicate_geometries(self):
         t = GeoTable.from_records([
             (0, 0),

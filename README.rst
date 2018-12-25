@@ -17,7 +17,7 @@ Install
     virtualenv -p $(which python3) --system-site-packages \
         ~/.virtualenvs/crosscompute
     source ~/.virtualenvs/crosscompute/bin/activate
-    pip install geotable
+    pip install -U geotable
 
 
 Use
@@ -25,6 +25,14 @@ Use
 If you cloned or downloaded the repository, you can run these examples in the ``tests`` folder. ::
 
     $ cd tests
+
+Load URLs. ::
+
+    In [1]: import geotable
+
+    In [2]: t = geotable.load(
+            'https://data.cityofnewyork.us/api/geospatial/tqmj-j8zm'
+            '?method=export&format=Original')
 
 Load KMZ files. ::
 

@@ -4,6 +4,7 @@
 - Add GeoTable.save_kmz
 - Exclude redundant geometry columns when saving
 - Support initialization from GeoTable class
+- Support geotable.load(url)
 
 0.3
 ---

@@ -4,9 +4,8 @@ from functools import partial, wraps
 from inspect import signature
 from invisibleroads_macros.disk import (
     TemporaryStorage, compress, compress_zip, find_paths, get_file_stem,
-    has_archive_extension, move_path, replace_file_extension, uncompress)
+    has_archive_extension, move_path, replace_file_extension)
 from invisibleroads_macros import geometry
-from invisibleroads_macros.exceptions import BadFormat
 from invisibleroads_macros.html import make_random_color
 from invisibleroads_macros.table import load_csv_safely
 from invisibleroads_macros.text import unicode_safely
@@ -23,6 +22,7 @@ from .macros import (
     _get_load_geometry_object,
     _get_proj4_from_gdal_layer,
     _get_proj4_from_path,
+    _get_source_folder,
     _prepare_gdal_layer,
     _has_one_proj4,
     _make_geotable)
@@ -38,6 +38,13 @@ from .projections import (
 KML_COLUMNS = [
     'description', 'timestamp', 'begin', 'end', 'altitudeMode', 'tessellate',
     'extrude', 'visibility', 'drawOrder', 'icon', 'snippet']
+GEOTABLE_EXTENSIONS = [
+    '.csv',
+    '.geojson',
+    '.kml',
+    '.kmz',
+    '.json',
+    '.shp']
 
 
 class GeoTable(pd.DataFrame):
@@ -58,9 +65,9 @@ class GeoTable(pd.DataFrame):
         return load_geotable_with_utm_proj4
 
     @classmethod
-    def load_utm_proj4(Class, source_path):
+    def load_utm_proj4(Class, source_path_or_url):
         geotable = Class.load(
-            source_path, target_proj4=LONGITUDE_LATITUDE_PROJ4)
+            source_path_or_url, target_proj4=LONGITUDE_LATITUDE_PROJ4)
         lonlat_point = GeometryCollection(geotable.geometries).centroid
         longitude, latitude = lonlat_point.x, lonlat_point.y
         zone_number, zone_letter = utm.from_latlon(latitude, longitude)[-2:]
@@ -69,13 +76,13 @@ class GeoTable(pd.DataFrame):
     @classmethod
     def load(
             Class,
-            source_path,
+            source_path_or_url,
             source_proj4=None,
             target_proj4=None,
             drop_z=False,
             bounding_box=None,
             bounding_polygon=None, **kw):
-        t = Class._load(source_path, source_proj4, target_proj4, **kw)
+        t = Class._load(source_path_or_url, source_proj4, target_proj4, **kw)
         if drop_z:
             t['geometry_object'] = geometry.transform_geometries(
                 t['geometry_object'], geometry.drop_z)
@@ -92,31 +99,36 @@ class GeoTable(pd.DataFrame):
     @classmethod
     def _load(
             Class,
-            source_path,
+            source_path_or_url,
             source_proj4=None,
             target_proj4=None, **kw):
         with TemporaryStorage() as storage:
             try:
-                source_folder = uncompress(source_path, storage.folder)
-            except BadFormat:
+                source_folder = _get_source_folder(
+                    source_path_or_url, storage.folder, GEOTABLE_EXTENSIONS)
+            except GeoTableError as e:
+                source_path = str(e)
                 if source_path.endswith('.csv'):
                     return Class.from_csv(
                         source_path, source_proj4, target_proj4, **kw)
                 else:
                     return Class.from_gdal(
                         source_path, source_proj4, target_proj4)
-            try:
-                return concatenate_tables(Class.from_csv(
-                    x, source_proj4, target_proj4, **kw
-                ) for x in find_paths(source_folder, '*.csv'))
-            except (GeoTableError, ValueError):
-                pass
-            try:
-                return concatenate_tables(Class.from_gdal(
-                    x, source_proj4, target_proj4
-                ) for x in find_paths(source_folder, '*.shp'))
-            except (GeoTableError, ValueError):
-                pass
+            tables = []
+            for path in find_paths(source_folder, '*.csv'):
+                try:
+                    t = Class.from_csv(path, source_proj4, target_proj4, **kw)
+                except (GeoTableError, ValueError):
+                    continue
+                tables.append(t)
+            for path in find_paths(source_folder, '*.shp'):
+                try:
+                    t = Class.from_gdal(path, source_proj4, target_proj4)
+                except (GeoTableError, ValueError):
+                    continue
+                tables.append(t)
+            if tables:
+                return concatenate_tables(tables)
         return Class()
 
     def drop_duplicate_geometries(self, inplace=False):
@@ -373,7 +385,7 @@ def load_utm_proj4(source_path):
 
 
 def load(
-        source_path,
+        source_path_or_url,
         source_proj4=None,
         target_proj4=None,
         drop_z=False,
@@ -381,7 +393,7 @@ def load(
         bounding_polygon=None,
         **kw):
     return GeoTable.load(
-        source_path,
+        source_path_or_url,
         source_proj4,
         target_proj4,
         drop_z,

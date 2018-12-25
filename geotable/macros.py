@@ -3,14 +3,18 @@ import numpy as np
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
-from invisibleroads_macros.disk import get_file_stem, replace_file_extension
+from invisibleroads_macros.disk import (
+    get_file_stem, link_safely, make_unique_folder, make_unique_path,
+    replace_file_extension, uncompress, ARCHIVE_EXTENSIONS)
+from invisibleroads_macros.exceptions import BadArchive, BadFormat
 from invisibleroads_macros.geometry import flip_xy, transform_geometries
 from invisibleroads_macros.log import get_log
 from invisibleroads_macros.text import unicode_safely
-from os.path import exists
+from os.path import basename, exists, join, splitext
 from osgeo import ogr
 from shapely import geometry, wkb, wkt
 from shapely.errors import WKBReadingError, WKTReadingError
+from urllib.request import urlretrieve
 
 from .exceptions import GeoTableError
 from .projections import (
@@ -312,6 +316,31 @@ def _make_geotable(t):
             t['geometry_object'] = t.apply(load_geometry_object, axis=1)
 
     return t
+
+
+def _get_source_folder(source_path_or_url, temporary_folder, file_extensions):
+    if source_path_or_url.startswith(
+            'http://') or source_path_or_url.startswith('https://'):
+        source_name = basename(source_path_or_url).strip()
+        source_path = join(temporary_folder, source_name.lower())
+        urlretrieve(source_path_or_url, source_path)
+    else:
+        source_path = source_path_or_url
+    source_extension = splitext(source_path)[1]
+    target_folder = make_unique_folder(temporary_folder)
+    if source_extension not in file_extensions:
+        try:
+            return uncompress(source_path, target_folder)
+        except BadFormat:
+            pass
+        for extension in ARCHIVE_EXTENSIONS:
+            try:
+                link_path = link_safely(make_unique_path(
+                    temporary_folder, extension), source_path)
+                return uncompress(link_path, target_folder)
+            except BadArchive:
+                pass
+    raise GeoTableError(source_path)
 
 
 METHOD_NAME_BY_TYPE = {
