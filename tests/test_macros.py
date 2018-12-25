@@ -9,6 +9,7 @@ from geotable.macros import (
     _get_instance_from_gdal_layer,
     _get_load_geometry_object,
     _get_proj4_from_gdal_layer,
+    _get_source_folder,
     _has_one_proj4,
     _transform_field_value)
 from geotable.projections import LONGITUDE_LATITUDE_PROJ4
@@ -18,7 +19,12 @@ from pytest import raises
 from shapely.errors import WKBReadingError
 from shapely.geometry import Point
 
-from conftest import prepare_feature
+from conftest import prepare_feature, FOLDER
+
+
+def test_get_source_folder(tmpdir):
+    temporary_folder = str(tmpdir)
+    assert _get_source_folder(FOLDER, temporary_folder, []) == FOLDER
 
 
 def test_get_geometry_columns():

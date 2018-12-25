@@ -9,7 +9,7 @@ from geotable import (
 from geotable.exceptions import EmptyGeoTableError, GeoTableError
 from geotable.projections import (
     normalize_proj4, LONGITUDE_LATITUDE_PROJ4, SPHERICAL_MERCATOR_PROJ4)
-from invisibleroads_macros.disk import replace_file_extension
+from invisibleroads_macros.disk import replace_file_extension, uncompress
 from os.path import exists, join
 from pytest import raises
 from shapely.geometry import Point, LineString, Polygon
@@ -67,6 +67,10 @@ class TestGeoTable(object):
 
         t = GeoTable.load(join(FOLDER, 'csv.zip'), parse_dates=['date'])
         assert t['date'].dtype.name == 'datetime64[ns]'
+
+        x_folder = uncompress(join(FOLDER, 'csv.zip'), tmpdir.join('csv'))
+        t = GeoTable.load(x_folder)
+        assert len(t) > 1
 
         x_path_object = tmpdir.join('x.txt')
         x_path_object.write('x')
