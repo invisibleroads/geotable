@@ -402,7 +402,7 @@ def load(
         **kw)
 
 
-concatenate_tables = partial(pd.concat, ignore_index=True)
+concatenate_tables = partial(pd.concat, ignore_index=True, sort=False)
 
 
 gdal.SetConfigOption('GDAL_NUM_THREADS', 'ALL_CPUS')
