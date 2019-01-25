@@ -88,29 +88,29 @@ def _get_field_type_by_name(gdal_layer):
 
 def _get_geometry_columns(table):
     column_names = table.columns
-    geometry_colums = []
+    geometry_columns = []
     for column_name in column_names:
         normalized_column_name = _normalize_column_name(column_name)
         if normalized_column_name in [
                 'wkt', 'longitudelatitudewkt', 'latitudelongitudewkt']:
-            geometry_colums = [column_name]
+            geometry_columns = [column_name]
             break
     else:
         def is_x(c):
             return c in [
-                'longitude', c.endswith('longitude'), 'lon', 'x']
+                'longitude', 'lon', 'x'] or c.endswith('longitude')
 
         def is_y(c):
             return c in [
-                'latitude', c.endswith('latitude'), 'lat', 'y']
+                'latitude', 'lat', 'y'] or c.endswith('latitude')
 
-        geometry_colums = _get_paired_columns(
-            column_names, is_x, is_y)
-    if not len(geometry_colums):
+        geometry_columns = _get_paired_columns(
+            column_names, is_x, is_y) or []
+    if not len(geometry_columns):
         raise GeoTableError('geometry columns expected')
 
-    table.dropna(subset=geometry_colums, inplace=True)
-    return geometry_colums
+    table.dropna(subset=geometry_columns, inplace=True)
+    return geometry_columns
 
 
 def _get_paired_columns(column_names, is_x, is_y):
