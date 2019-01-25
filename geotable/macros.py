@@ -125,7 +125,6 @@ def _get_paired_columns(column_names, is_x, is_y):
             return [x_column, y_column]
 
 
-
 def _get_get_field_values(field_type_by_name):
     field_types = field_type_by_name.values()
 
