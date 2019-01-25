@@ -88,38 +88,29 @@ def _get_field_type_by_name(gdal_layer):
 
 def _get_geometry_columns(table):
     column_names = table.columns
+    geometry_colums = []
     for column_name in column_names:
         normalized_column_name = _normalize_column_name(column_name)
-        if normalized_column_name == 'wkt':
-            return [column_name]
-        if normalized_column_name == 'longitudelatitudewkt':
-            return [column_name]
-        if normalized_column_name == 'latitudelongitudewkt':
-            return [column_name]
+        if normalized_column_name in [
+                'wkt', 'longitudelatitudewkt', 'latitudelongitudewkt']:
+            geometry_colums = [column_name]
+            break
+    else:
+        def is_x(c):
+            return c in [
+                'longitude', c.endswith('longitude'), 'lon', 'x']
 
-    paired_columns = _get_paired_columns(
-        column_names, lambda _: _ == 'longitude', lambda _: _ == 'latitude')
-    if paired_columns:
-        return paired_columns
+        def is_y(c):
+            return c in [
+                'latitude', c.endswith('latitude'), 'lat', 'y']
 
-    paired_columns = _get_paired_columns(
-        column_names,
-        lambda _: _.endswith('longitude'),
-        lambda _: _.endswith('latitude'))
-    if paired_columns:
-        return paired_columns
+        geometry_colums = _get_paired_columns(
+            column_names, is_x, is_y)
+    if not len(geometry_colums):
+        raise GeoTableError('geometry columns expected')
 
-    paired_columns = _get_paired_columns(
-        column_names, lambda _: _ == 'lon', lambda _: _ == 'lat')
-    if paired_columns:
-        return paired_columns
-
-    paired_columns = _get_paired_columns(
-        column_names, lambda _: _ == 'x', lambda _: _ == 'y')
-    if paired_columns:
-        return paired_columns
-
-    raise GeoTableError('geometry columns expected')
+    table.dropna(subset=geometry_colums, inplace=True)
+    return geometry_colums
 
 
 def _get_paired_columns(column_names, is_x, is_y):
@@ -130,8 +121,9 @@ def _get_paired_columns(column_names, is_x, is_y):
             x_column = column_name
         elif is_y(normalized_column_name):
             y_column = column_name
-    if x_column and y_column:
-        return [x_column, y_column]
+        if x_column and y_column:
+            return [x_column, y_column]
+
 
 
 def _get_get_field_values(field_type_by_name):

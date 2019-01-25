@@ -241,6 +241,15 @@ class TestGeoTable(object):
         assert type(georow) == GeoRow
         assert georow['category'] == 'vegetable'
 
+    def test_na_values(self):
+        t = GeoTable.from_records([
+            (0, 0),
+            (None, None),
+            (0, 1),
+            (1, 2),
+        ], columns=['lon', 'lat'])
+        assert len(t) == 3
+
 
 class TestGeoRow(object):
 
