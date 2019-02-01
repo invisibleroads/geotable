@@ -5,3 +5,4 @@ Override square brackets to preserve geometry columns when selecting columns
 Add ability to save field as integer list for shapefile
 Consider compacting proj4 into a single property instead of a column
 Consider issuing warning if two geometries are so close together that they will tranform into the same geometry in the target projection
+Review https://pcjericks.github.io/py-gdalogr-cookbook/projection.html
