@@ -14,6 +14,7 @@ from os.path import basename, exists, isdir, join, splitext
 from osgeo import ogr
 from shapely import geometry, wkb, wkt
 from shapely.errors import WKBReadingError, WKTReadingError
+from urllib.parse import urlsplit as split_url
 from urllib.request import urlretrieve
 
 from .exceptions import GeoTableError
@@ -32,7 +33,7 @@ def _get_source_folder(source_path_or_url, temporary_folder, file_extensions):
         return source_path_or_url
     if source_path_or_url.startswith(
             'http://') or source_path_or_url.startswith('https://'):
-        source_name = basename(source_path_or_url).strip()
+        source_name = _get_source_name(source_path_or_url)
         source_path = join(temporary_folder, source_name.lower())
         urlretrieve(source_path_or_url, source_path)
     else:
@@ -52,6 +53,10 @@ def _get_source_folder(source_path_or_url, temporary_folder, file_extensions):
             except BadArchive:
                 pass
     raise GeoTableError(source_path)
+
+
+def _get_source_name(url):
+    return basename(split_url(url).path)
 
 
 def _get_field_definitions(geotable):
