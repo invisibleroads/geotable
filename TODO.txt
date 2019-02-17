@@ -1,7 +1,9 @@
 Consider a way to load as utm by only loading once and then converting
+Let user specify source format when loading from url
 Handle uppercase file extensions
 Override square brackets to preserve geometry columns when selecting columns
 Add ability to save field as integer list for shapefile
 Consider compacting proj4 into a single property instead of a column
 Consider issuing warning if two geometries are so close together that they will tranform into the same geometry in the target projection
 Consider recognizing x_coordinate and y_coordinate as geometry columns
+Review https://pcjericks.github.io/py-gdalogr-cookbook/projection.html
