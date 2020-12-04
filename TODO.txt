@@ -8,3 +8,5 @@ Consider issuing warning if two geometries are so close together that they will 
 Consider recognizing x_coordinate and y_coordinate as geometry columns
 Review https://pcjericks.github.io/py-gdalogr-cookbook/projection.html
 Make it possible to automatically detect projection
+Document geojson
+Define is_same_proj4
