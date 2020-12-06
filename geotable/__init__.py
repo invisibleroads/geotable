@@ -283,7 +283,7 @@ class GeoTable(pd.DataFrame):
             raise GeoTableError('gdal driver missing (%s)' % driver_name)
         try:
             geometry_columns = _get_geometry_columns(self)
-        except GeoTableError as e:
+        except GeoTableError:
             table = self
         else:
             table = self.drop(columns=geometry_columns)
