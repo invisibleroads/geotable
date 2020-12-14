@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-class GeoTableError(Exception):
+class GeoTableError(ValueError):
     pass
 
 
