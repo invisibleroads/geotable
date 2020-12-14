@@ -10,4 +10,4 @@ Review https://pcjericks.github.io/py-gdalogr-cookbook/projection.html
 Make it possible to automatically detect projection
 Document geojson
 Define is_same_proj4
-Support loading crs in geojson
+Use updated invisibleroads_macros packages

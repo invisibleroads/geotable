@@ -118,7 +118,7 @@ class TestGeoTable(object):
             GeoTable.from_gdal(join(FOLDER, 'conftest.py'))
         t = GeoTable.from_gdal(join(
             FOLDER, 'shp', 'b.shp'), target_proj4=UTM_PROJ4)
-        assert t.iloc[0]['geometry_object'].x == -638500.4251527891
+        assert int(t.iloc[0]['geometry_object'].x) == -638500
 
     def test_from_csv(self, tmpdir):
         p = tmpdir.join('x.csv')
