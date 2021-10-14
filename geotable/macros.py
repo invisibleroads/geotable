@@ -1,5 +1,4 @@
 import inspect
-import numpy as np
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
@@ -307,8 +306,8 @@ def _transform_field_value(field_value, field_type):
     elif field_type in (ogr.OFTDate, ogr.OFTDateTime):
         try:
             field_value = datetime(*map(int, field_value))
-        except ValueError:
-            field_value = np.nan
+        except (OverflowError, ValueError):
+            pass
     return field_value
 
 
