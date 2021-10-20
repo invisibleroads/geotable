@@ -171,6 +171,10 @@ Here are some other convenience functions. ::
     load = geotable.define_load_with_utm_proj4(reference_path)
     load('csv/wkt.csv')
 
+Setting the `GEOTABLE_CACHE_FOLDER` environment variable will enable caching.
+
+    export GEOTABLE_CACHE_FOLDER=~/.cache/geotable
+
 
 Test
 ----
