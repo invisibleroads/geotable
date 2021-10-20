@@ -161,4 +161,4 @@ def test_has_one_proj4():
 
 
 def test_transform_field_value():
-    assert pd.isnull(_transform_field_value('x', ogr.OFTDate))
+    assert 'x' == _transform_field_value('x', ogr.OFTDate)
