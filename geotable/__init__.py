@@ -15,6 +15,7 @@ from shapely.geometry import GeometryCollection, box
 
 from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
+    _clear_cache,
     _ensure_geotable_columns,
     _get_geometry_columns,
     _get_instance_for_csv,
@@ -81,8 +82,10 @@ class GeoTable(pd.DataFrame):
             target_proj4=None,
             drop_z=False,
             bounding_box=None,
-            bounding_polygon=None, **kw):
-        t = Class._load(source_path_or_url, source_proj4, target_proj4, **kw)
+            bounding_polygon=None,
+            **kw):
+        t = Class._load(
+            source_path_or_url, source_proj4, target_proj4, **kw)
         if drop_z:
             t['geometry_object'] = geometry.transform_geometries(
                 t['geometry_object'], geometry.drop_z)
@@ -101,7 +104,8 @@ class GeoTable(pd.DataFrame):
             Class,
             source_path_or_url,
             source_proj4=None,
-            target_proj4=None, **kw):
+            target_proj4=None,
+            **kw):
         with TemporaryStorage() as storage:
             try:
                 source_folder = _get_source_folder(
@@ -402,6 +406,7 @@ def load(
         **kw)
 
 
+clear_cache = _clear_cache
 concatenate_tables = partial(pd.concat, ignore_index=True, sort=False)
 
 
