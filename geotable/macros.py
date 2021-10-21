@@ -400,10 +400,10 @@ class URICache:
         self._save_relative_path_by_uri(relative_path_by_uri)
         return path
 
-    def get_or_set(self, uri, save):
+    def get_or_set(self, uri, download):
         path = self.get(uri)
         if not path:
-            path = self.set(uri, save)
+            path = self.set(uri, download)
         return path
 
     def clear(self, uri=None):
