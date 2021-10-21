@@ -64,8 +64,17 @@ def normalize_proj4(proj4):
 def _get_coordinate_transformation(source_proj4, target_proj4):
     source_spatial_reference = _get_spatial_reference_from_proj4(source_proj4)
     target_spatial_reference = _get_spatial_reference_from_proj4(target_proj4)
-    return osr.CoordinateTransformation(
-        source_spatial_reference, target_spatial_reference)
+
+    def run():
+        return osr.CoordinateTransformation(
+            source_spatial_reference, target_spatial_reference)
+
+    try:
+        coordinate_transformation = run()
+    except RuntimeError:
+        # Workaround weird RuntimeError on first call in GDAL 3.3.2
+        coordinate_transformation = run()
+    return coordinate_transformation
 
 
 def _get_spatial_reference_from_proj4(proj4):
