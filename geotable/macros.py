@@ -391,7 +391,7 @@ class URICache:
         if uri not in relative_path_by_uri:
             return
         relative_path = relative_path_by_uri[uri]
-        print('using cache... force download with geotable.clear_cache')
+        print('using cache... force download with clear_cache')
         return join(self.folder, relative_path)
 
     def set(self, uri, download):

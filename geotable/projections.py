@@ -35,7 +35,8 @@ def get_transform_shapely_geometry(source_proj4, target_proj4):
 
     def transform_shapely_geometry(shapely_geometry):
         gdal_geometry = ogr.CreateGeometryFromWkb(shapely_geometry.wkb)
-        return wkb.loads(transform_gdal_geometry(gdal_geometry).ExportToWkb())
+        geometry_wkb = transform_gdal_geometry(gdal_geometry).ExportToWkb()
+        return wkb.loads(bytes(geometry_wkb))
 
     return transform_shapely_geometry
 
