@@ -37,7 +37,7 @@ def _get_source_folder(source_path_or_url, temporary_folder, file_extensions):
         return source_path_or_url
     if source_path_or_url.startswith(
             'http://') or source_path_or_url.startswith('https://'):
-        source_path = URICache(CACHE_FOLDER or temporary_folder).get_or_set(
+        source_path = URICache(CACHE_FOLDER).get_or_set(
             source_path_or_url, urlretrieve)
     else:
         source_path = source_path_or_url
@@ -199,8 +199,12 @@ def _get_instance_from_gdal_layer(Class, gdal_layer, transform_gdal_geometry):
             continue
         gdal_geometry = feature.GetGeometryRef()
         try:
-            shapely_geometry = wkb.loads(transform_gdal_geometry(
-                gdal_geometry).ExportToWkb()) if gdal_geometry else None
+            if gdal_geometry:
+                geometry_wkb = transform_gdal_geometry(
+                    gdal_geometry).ExportToWkb()
+                shapely_geometry = wkb.loads(bytes(geometry_wkb))
+            else:
+                shapely_geometry = None
         except WKBReadingError:
             L.warning('feature unloadable (index=%s)' % feature_index)
             continue
@@ -386,8 +390,9 @@ class URICache:
             return
         if uri not in relative_path_by_uri:
             return
-        path = relative_path_by_uri[uri]
-        return join(self.folder, path)
+        relative_path = relative_path_by_uri[uri]
+        print('using cache... force download with geotable.clear_cache')
+        return join(self.folder, relative_path)
 
     def set(self, uri, download):
         try:
@@ -395,6 +400,7 @@ class URICache:
         except OSError:
             relative_path_by_uri = {}
         path = mkstemp(dir=self.folder, prefix='')[1]
+        print('downloading...')
         download(uri, path)
         relative_path_by_uri[uri] = relpath(path, self.folder)
         self._save_relative_path_by_uri(relative_path_by_uri)
@@ -421,7 +427,7 @@ class URICache:
         json.dump(relative_path_by_uri, open(self._index_path, 'wt'))
 
 
-def _clear_cache(self, uri=None):
+def _clear_cache(uri=None):
     if not CACHE_FOLDER:
         pass
     URICache(CACHE_FOLDER).clear(uri)
