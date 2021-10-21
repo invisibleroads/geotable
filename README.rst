@@ -171,15 +171,6 @@ Here are some other convenience functions. ::
     load = geotable.define_load_with_utm_proj4(reference_path)
     load('csv/wkt.csv')
 
-URLs are cached by default. Clear the cache to force re-download.
-
-    geotable.clear_cache(url)
-    geotable.load(url)
-
-Change the default cache folder by setting the `GEOTABLE_CACHE_FOLDER` environment variable.
-
-    export GEOTABLE_CACHE_FOLDER=~/.cache/geotable
-
 
 Test
 ----

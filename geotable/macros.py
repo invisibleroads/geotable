@@ -1,5 +1,4 @@
 import inspect
-import json
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
@@ -10,17 +9,13 @@ from invisibleroads_macros.exceptions import BadArchive, BadFormat
 from invisibleroads_macros.geometry import flip_xy, transform_geometries
 from invisibleroads_macros.log import get_log
 from invisibleroads_macros.text import unicode_safely
-from os import makedirs
-from os.path import (
-    basename, exists, isdir, join, relpath, splitext)
+from os.path import basename, exists, isdir, join, splitext
 from osgeo import ogr
 from shapely import geometry, wkb, wkt
 from shapely.errors import WKBReadingError, WKTReadingError
-from tempfile import mkstemp
 from urllib.parse import urlsplit as split_url
 from urllib.request import urlretrieve
 
-from .constants import CACHE_FOLDER
 from .exceptions import GeoTableError
 from .projections import (
     _get_spatial_reference_from_proj4,
@@ -37,8 +32,9 @@ def _get_source_folder(source_path_or_url, temporary_folder, file_extensions):
         return source_path_or_url
     if source_path_or_url.startswith(
             'http://') or source_path_or_url.startswith('https://'):
-        source_path = URICache(CACHE_FOLDER).get_or_set(
-            source_path_or_url, urlretrieve)
+        source_name = _get_source_name(source_path_or_url)
+        source_path = join(temporary_folder, source_name)
+        urlretrieve(source_path_or_url, source_path)
     else:
         source_path = source_path_or_url
     source_extension = splitext(source_path)[1]
@@ -355,82 +351,6 @@ def _make_geotable(t):
             t['geometry_object'] = t.apply(load_geometry_object, axis=1)
 
     return t
-
-
-class URICache:
-
-    def __init__(self, folder):
-        try:
-            makedirs(folder)
-        except OSError:
-            pass
-        self.folder = folder
-
-    @property
-    def _index_path(self):
-        return join(self.folder, 'index.json')
-
-    def _load_relative_path_by_uri(self):
-        source_path = self._index_path
-        try:
-            relative_path_by_uri = json.load(open(source_path, 'rt'))
-        except OSError:
-            raise
-        return relative_path_by_uri
-
-    def _save_relative_path_by_uri(self, relative_path_by_uri):
-        target_path = self._index_path
-        json.dump(relative_path_by_uri, open(target_path, 'wt'))
-        return target_path
-
-    def get(self, uri):
-        try:
-            relative_path_by_uri = self._load_relative_path_by_uri()
-        except OSError:
-            return
-        if uri not in relative_path_by_uri:
-            return
-        relative_path = relative_path_by_uri[uri]
-        print('using cache... force download with clear_cache')
-        return join(self.folder, relative_path)
-
-    def set(self, uri, download):
-        try:
-            relative_path_by_uri = self._load_relative_path_by_uri()
-        except OSError:
-            relative_path_by_uri = {}
-        path = mkstemp(dir=self.folder, prefix='')[1]
-        print('downloading...')
-        download(uri, path)
-        relative_path_by_uri[uri] = relpath(path, self.folder)
-        self._save_relative_path_by_uri(relative_path_by_uri)
-        return path
-
-    def get_or_set(self, uri, download):
-        path = self.get(uri)
-        if not path:
-            path = self.set(uri, download)
-        return path
-
-    def clear(self, uri=None):
-        try:
-            relative_path_by_uri = self._load_relative_path_by_uri()
-        except OSError:
-            return
-        if uri:
-            try:
-                relative_path_by_uri.pop(uri)
-            except KeyError:
-                return
-        else:
-            relative_path_by_uri = {}
-        json.dump(relative_path_by_uri, open(self._index_path, 'wt'))
-
-
-def _clear_cache(uri=None):
-    if not CACHE_FOLDER:
-        pass
-    URICache(CACHE_FOLDER).clear(uri)
 
 
 METHOD_NAME_BY_TYPE = {

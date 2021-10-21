@@ -15,7 +15,6 @@ from shapely.geometry import GeometryCollection, box
 
 from .exceptions import EmptyGeoTableError, GeoTableError
 from .macros import (
-    _clear_cache,
     _ensure_geotable_columns,
     _get_geometry_columns,
     _get_instance_for_csv,
@@ -406,7 +405,6 @@ def load(
         **kw)
 
 
-clear_cache = _clear_cache
 concatenate_tables = partial(pd.concat, ignore_index=True, sort=False)
 
 
